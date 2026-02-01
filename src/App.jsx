@@ -3,6 +3,9 @@ import { ThemeProvider } from "./context/ThemeContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
 import "./i18n";
 
 export default function App() {
@@ -10,13 +13,14 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <div className="min-h-screen flex flex-col bg-surface-light dark:bg-surface-dark transition-colors duration-300">
-          {/* Noise texture overlay */}
           <div className="noise-overlay" />
-
           <Navbar />
           <div className="flex-1">
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={<Dashboard />} />
             </Routes>
           </div>
           <Footer />

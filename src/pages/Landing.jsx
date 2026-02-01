@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { AdjustmentsHorizontalIcon, CpuChipIcon, MusicalNoteIcon, SpeakerWaveIcon, BookOpenIcon, ClockIcon } from "@heroicons/react/24/outline";
 
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } };
 const fadeUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
@@ -25,14 +26,14 @@ function WaveformVisual() {
   );
 }
 
-function FeatureCard({ icon, title, description, delay }) {
+function FeatureCard({ Icon, title, description, delay }) {
   return (
     <motion.div
       variants={fadeUp}
       className="card-solid p-6 group hover:border-neon-cyan/30 dark:hover:border-neon-cyan/30 transition-all duration-300"
     >
       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan/10 to-neon-magenta/10 dark:from-neon-cyan/20 dark:to-neon-magenta/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-        <span className="text-xl">{icon}</span>
+        <Icon className="w-5 h-5 text-accent" />
       </div>
       <h3 className="font-display font-semibold text-lg mb-2 text-gray-900 dark:text-white">{title}</h3>
       <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{description}</p>
@@ -44,19 +45,19 @@ export default function Landing() {
   const { t } = useTranslation();
 
   const features = [
-    { icon: "🎛️", key: "stems" },
-    { icon: "🎹", key: "midi" },
-    { icon: "🎵", key: "visualization" },
-    { icon: "🎚️", key: "mixer" },
-    { icon: "📚", key: "library" },
-    { icon: "⏱️", key: "speed" },
+    { Icon: AdjustmentsHorizontalIcon, key: "stems" },
+    { Icon: CpuChipIcon, key: "midi" },
+    { Icon: MusicalNoteIcon, key: "visualization" },
+    { Icon: SpeakerWaveIcon, key: "mixer" },
+    { Icon: BookOpenIcon, key: "library" },
+    { Icon: ClockIcon, key: "speed" },
   ];
 
   return (
     <main className="relative overflow-hidden">
       {/* Ambient background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-neon-cyan/5 dark:bg-neon-cyan/10 blur-[120px]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-neon-cyan/5 dark:bg-accent-soft blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-neon-magenta/5 dark:bg-neon-magenta/8 blur-[120px]" />
       </div>
 
@@ -133,7 +134,7 @@ export default function Landing() {
               {features.map((f, i) => (
                 <FeatureCard
                   key={f.key}
-                  icon={f.icon}
+                  Icon={f.Icon}
                   title={t(`features.${f.key}.title`)}
                   description={t(`features.${f.key}.description`)}
                   delay={i * 0.1}
@@ -157,7 +158,7 @@ export default function Landing() {
               <div className="absolute inset-0 bg-gradient-to-br from-neon-cyan/5 to-neon-magenta/5" />
               <div className="relative">
                 <h2 className="font-display font-bold text-3xl sm:text-4xl mb-4 text-gray-900 dark:text-white">
-                  🎸
+                  <span className="text-gradient">Ludilo</span>
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400 mb-8 text-lg">
                   {t("hero.subtitle")}

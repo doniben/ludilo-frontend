@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 
 const languages = [
   { code: "es", label: "ES", flag: "🇲🇽" },
@@ -15,6 +15,18 @@ export default function Navbar() {
   const { theme, toggle } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("ludilo-user");
+    if (stored) setUser(JSON.parse(stored));
+    const handleStorage = () => {
+      const s = localStorage.getItem("ludilo-user");
+      setUser(s ? JSON.parse(s) : null);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   const currentLang = languages.find((l) => l.code === i18n.language) || languages[0];
 
@@ -69,7 +81,7 @@ export default function Navbar() {
                         key={lang.code}
                         onClick={() => { i18n.changeLanguage(lang.code); setLangOpen(false); }}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-white/5 ${
-                          i18n.language === lang.code ? "text-neon-cyan font-semibold" : "text-gray-700 dark:text-gray-300"
+                          i18n.language === lang.code ? "text-accent font-semibold" : "text-gray-700 dark:text-gray-300"
                         }`}
                       >
                         <span>{lang.flag}</span>
@@ -92,12 +104,21 @@ export default function Navbar() {
 
             {/* Auth buttons */}
             <div className="hidden md:flex items-center gap-2 ml-2">
-              <a href="/login" className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                {t("nav.login")}
-              </a>
-              <a href="/register" className="btn-primary text-xs py-2">
-                {t("nav.register")}
-              </a>
+              {user ? (
+                <a href="/dashboard" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                  <UserCircleIcon className="w-5 h-5 text-accent" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{user.username}</span>
+                </a>
+              ) : (
+                <>
+                  <a href="/login" className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+                    {t("nav.login")}
+                  </a>
+                  <a href="/register" className="btn-primary text-xs py-2">
+                    {t("nav.register")}
+                  </a>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}

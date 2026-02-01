@@ -41,15 +41,17 @@
            shadow-lg shadow-neon-cyan/20
            transition-all duration-300
            hover:shadow-xl hover:shadow-neon-cyan/30 hover:scale-[1.02]
-           active:scale-[0.98];
+           active:scale-[0.98]
+           dark:from-neon-cyan dark:to-ludilo-400;
   }
 
   .btn-secondary {
     @apply rounded-xl px-6 py-3 font-display font-semibold text-sm uppercase tracking-wider
-           border-2 border-neon-cyan/30 text-neon-cyan
+           border-2 border-ludilo-700/50 text-ludilo-700
            transition-all duration-300
-           hover:border-neon-cyan hover:bg-neon-cyan/5
-           dark:border-neon-cyan/30 dark:text-neon-cyan;
+           hover:border-ludilo-700 hover:bg-ludilo-700/5
+           dark:border-neon-cyan/30 dark:text-neon-cyan
+           dark:hover:border-neon-cyan dark:hover:bg-neon-cyan/5;
   }
 
   .card-glass {
@@ -66,7 +68,8 @@
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-neon-cyan via-ludilo-400 to-neon-magenta;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-ludilo-700 via-ludilo-600 to-neon-magenta
+           dark:from-neon-cyan dark:via-ludilo-400 dark:to-neon-magenta;
   }
 
   .glow-text {
@@ -84,4 +87,17 @@
   .animate-delay-300 { animation-delay: 300ms; }
   .animate-delay-400 { animation-delay: 400ms; }
   .animate-delay-500 { animation-delay: 500ms; }
+
+  .text-accent {
+    @apply text-ludilo-700 dark:text-neon-cyan;
+  }
+  .bg-accent {
+    @apply bg-ludilo-700 dark:bg-neon-cyan;
+  }
+  .bg-accent-soft {
+    @apply bg-ludilo-700/10 dark:bg-neon-cyan/10;
+  }
+  .border-accent {
+    @apply border-ludilo-700/30 dark:border-neon-cyan/30;
+  }
 }
