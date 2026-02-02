@@ -20,12 +20,16 @@ export default function Navbar() {
   useEffect(() => {
     const stored = localStorage.getItem("ludilo-user");
     if (stored) setUser(JSON.parse(stored));
-    const handleStorage = () => {
+    const handleAuth = () => {
       const s = localStorage.getItem("ludilo-user");
       setUser(s ? JSON.parse(s) : null);
     };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("storage", handleAuth);
+    window.addEventListener("ludilo-auth", handleAuth);
+    return () => {
+      window.removeEventListener("storage", handleAuth);
+      window.removeEventListener("ludilo-auth", handleAuth);
+    };
   }, []);
 
   const currentLang = languages.find((l) => l.code === i18n.language) || languages[0];

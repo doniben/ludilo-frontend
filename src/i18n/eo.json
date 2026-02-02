@@ -52,5 +52,22 @@
   "footer": {
     "tagline": "Lernu muzikon vide kaj interage",
     "rights": "Ĉiuj rajtoj rezervitaj"
+  },
+  "errors": {
+    "INVALID_CREDENTIALS": "Nevalidaj akreditaĵoj",
+    "EMAIL_ALREADY_REGISTERED": "Ĉi tiu retpoŝto jam estas registrita",
+    "FIELDS_REQUIRED": "Ĉiuj kampoj estas devigaj",
+    "INVALID_JSON": "Nevalidaj datumoj",
+    "NETWORK_ERROR": "Ne eblis konektiĝi al la servilo",
+    "UPLOAD_FAILED": "Eraro dum alŝuto de dosiero",
+    "UNKNOWN": "Okazis neatendita eraro"
+  },
+  "upload": {
+    "drop_here": "Trenu sondosieron ĉi tien aŭ klaku por elekti",
+    "invalid_format": "Nesubtenata formato. Uzu: {{formats}}",
+    "preparing": "Preparante...",
+    "uploading": "Alŝutante dosieron...",
+    "processing": "Envicigante prilaboradon...",
+    "done": "Preta!"
   }
 }

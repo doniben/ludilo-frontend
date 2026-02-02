@@ -52,5 +52,22 @@
   "footer": {
     "tagline": "Learn music visually and interactively",
     "rights": "All rights reserved"
+  },
+  "errors": {
+    "INVALID_CREDENTIALS": "Invalid credentials",
+    "EMAIL_ALREADY_REGISTERED": "This email is already registered",
+    "FIELDS_REQUIRED": "All fields are required",
+    "INVALID_JSON": "Invalid data",
+    "NETWORK_ERROR": "Could not connect to server",
+    "UPLOAD_FAILED": "Failed to upload file",
+    "UNKNOWN": "An unexpected error occurred"
+  },
+  "upload": {
+    "drop_here": "Drag an audio file here or click to select",
+    "invalid_format": "Unsupported format. Use: {{formats}}",
+    "preparing": "Preparing...",
+    "uploading": "Uploading file...",
+    "processing": "Queuing for processing...",
+    "done": "Done!"
   }
 }

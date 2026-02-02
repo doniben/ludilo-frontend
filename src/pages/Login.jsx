@@ -25,9 +25,11 @@ export default function Login() {
       if (!res.ok) throw new Error(data.error);
       localStorage.setItem("ludilo-token", data.token);
       localStorage.setItem("ludilo-user", JSON.stringify(data.user));
+      window.dispatchEvent(new Event("ludilo-auth"));
       navigate("/dashboard");
     } catch (err) {
-      setError(err.name === "TypeError" ? "No se pudo conectar al servidor" : err.message);
+      const code = err.name === "TypeError" ? "NETWORK_ERROR" : err.message;
+      setError(t(`errors.${code}`, t("errors.UNKNOWN")));
     } finally {
       setLoading(false);
     }
