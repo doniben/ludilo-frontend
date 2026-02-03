@@ -69,5 +69,12 @@
     "uploading": "Uploading file...",
     "processing": "Queuing for processing...",
     "done": "Done!"
+  },
+  "dashboard": {
+    "my_songs": "My songs",
+    "status_uploading": "Uploading",
+    "status_queued": "Queued",
+    "status_processing": "Processing",
+    "status_done": "Done"
   }
 }

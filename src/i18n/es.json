@@ -69,5 +69,12 @@
     "uploading": "Subiendo archivo...",
     "processing": "Encolando procesamiento...",
     "done": "¡Listo!"
+  },
+  "dashboard": {
+    "my_songs": "Mis canciones",
+    "status_uploading": "Subiendo",
+    "status_queued": "En cola",
+    "status_processing": "Procesando",
+    "status_done": "Listo"
   }
 }

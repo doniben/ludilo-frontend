@@ -69,5 +69,12 @@
     "uploading": "Alŝutante dosieron...",
     "processing": "Envicigante prilaboradon...",
     "done": "Preta!"
+  },
+  "dashboard": {
+    "my_songs": "Miaj kantoj",
+    "status_uploading": "Alŝutante",
+    "status_queued": "Envicigita",
+    "status_processing": "Prilaborante",
+    "status_done": "Preta"
   }
 }

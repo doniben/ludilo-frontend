@@ -18,12 +18,28 @@ export default function Dashboard() {
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("ludilo-token");
+  const [songs, setSongs] = useState([]);
 
   useEffect(() => {
     const stored = localStorage.getItem("ludilo-user");
     if (!stored) { navigate("/login"); return; }
     setUser(JSON.parse(stored));
+    fetchSongs();
   }, [navigate]);
+
+  const fetchSongs = async () => {
+    const t = localStorage.getItem("ludilo-token");
+    if (!t) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/songs`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSongs(data.songs || []);
+      }
+    } catch {}
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("ludilo-token");
@@ -80,7 +96,7 @@ export default function Dashboard() {
       if (!processRes.ok) throw new Error(processData.error);
       setProgress(100);
 
-      setTimeout(() => { setFile(null); setUploading(false); setProgress(0); }, 1500);
+      setTimeout(() => { setFile(null); setUploading(false); setProgress(0); fetchSongs(); }, 1500);
     } catch (err) {
       const code = err.name === "TypeError" ? "NETWORK_ERROR" : err.message;
       setError(t(`errors.${code}`, t("errors.UNKNOWN")));
@@ -172,6 +188,34 @@ export default function Dashboard() {
             <button onClick={handleUpload} className="btn-primary w-full mt-4 py-3">{t("nav.upload")}</button>
           )}
         </motion.div>
+
+        {/* Songs list */}
+        {songs.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-8">
+            <h2 className="font-display font-semibold text-lg text-gray-900 dark:text-white mb-4">{t("dashboard.my_songs")}</h2>
+            <div className="space-y-3">
+              {songs.map((song) => (
+                <div key={song.id} className="card-solid p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <MusicalNoteIcon className="w-5 h-5 text-accent" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white text-sm">{song.title}</p>
+                      <p className="text-xs text-gray-500">{song.format.toUpperCase()}</p>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-mono px-2 py-1 rounded ${
+                    song.status === "done" ? "bg-green-500/10 text-green-600 dark:text-green-400" :
+                    song.status === "queued" ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400" :
+                    song.status === "processing" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" :
+                    "bg-gray-100 dark:bg-white/5 text-gray-500"
+                  }`}>
+                    {t(`dashboard.status_${song.status}`, song.status)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
     </main>
   );
