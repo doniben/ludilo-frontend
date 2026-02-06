@@ -209,6 +209,7 @@ export default function Dashboard() {
                     song.status === "processing" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" :
                     "bg-gray-100 dark:bg-white/5 text-gray-500"
                   }`}>
+                    {song.status === "queued" && song.position ? `#${song.position} · ` : ""}
                     {t(`dashboard.status_${song.status}`, song.status)}
                   </span>
                 </div>
