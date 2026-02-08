@@ -76,5 +76,22 @@
     "status_queued": "Queued",
     "status_processing": "Processing",
     "status_done": "Done"
+  },
+  "library": {
+    "title": "Library",
+    "subtitle": "Search thousands of songs ready to practice",
+    "search_placeholder": "Search by title or artist...",
+    "results_count": "{{count}} results",
+    "no_results": "No songs found",
+    "prev": "Previous",
+    "next": "Next",
+    "source_all": "All",
+    "source_guitarpro": "Guitar Pro",
+    "source_lakh": "Lakh MIDI",
+    "source_la-midi": "LA MIDI",
+    "match_found": "We found this song in our library!",
+    "match_confirm": "Is this your song?",
+    "match_yes": "Yes, use this version",
+    "match_no": "No, process my audio"
   }
 }

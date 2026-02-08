@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowUpTrayIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowUpTrayIcon, MusicalNoteIcon, CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 const ALLOWED = ["mp3", "wav", "m4a", "flac", "ogg"];
+const API = import.meta.env.VITE_API_URL;
 
 export default function Upload() {
   const { t } = useTranslation();
@@ -15,6 +16,8 @@ export default function Upload() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+  const [libraryMatch, setLibraryMatch] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   const token = localStorage.getItem("ludilo-token");
   if (!token) { navigate("/login"); return null; }
@@ -27,6 +30,22 @@ export default function Upload() {
     }
     setError("");
     setFile(f);
+    setLibraryMatch(null);
+    checkLibrary(f.name);
+  };
+
+  const checkLibrary = async (filename) => {
+    const title = filename.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").trim();
+    if (title.length < 2) return;
+    setChecking(true);
+    try {
+      const res = await fetch(`${API}/library/search?q=${encodeURIComponent(title)}&pageSize=3`);
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        setLibraryMatch(data.results[0]);
+      }
+    } catch { /* ignore */ }
+    finally { setChecking(false); }
   };
 
   const handleDrop = (e) => {
@@ -146,6 +165,54 @@ export default function Upload() {
                 {progress === 100 && t("upload.done")}
               </p>
             </div>
+          )}
+
+          {/* Library match */}
+          <AnimatePresence>
+            {libraryMatch && !uploading && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="mt-4 p-4 rounded-xl bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20"
+              >
+                <div className="flex items-start gap-3">
+                  <CheckCircleIcon className="w-6 h-6 text-ludilo-600 dark:text-neon-cyan flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900 dark:text-white text-sm">{t("library.match_found")}</p>
+                    <p className="text-ludilo-700 dark:text-neon-cyan font-medium mt-1">
+                      {libraryMatch.artist} — {libraryMatch.title}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t("library.match_confirm")}</p>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => navigate("/dashboard")}
+                        className="btn-primary text-xs px-3 py-1.5"
+                      >
+                        {t("library.match_yes")}
+                      </button>
+                      <button
+                        onClick={() => setLibraryMatch(null)}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                      >
+                        {t("library.match_no")}
+                      </button>
+                    </div>
+                  </div>
+                  <button onClick={() => setLibraryMatch(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Checking library */}
+          {checking && (
+            <p className="mt-3 text-xs text-gray-400 dark:text-gray-500 flex items-center gap-2">
+              <span className="w-3 h-3 border border-ludilo-500 dark:border-neon-cyan border-t-transparent rounded-full animate-spin" />
+              {t("upload.preparing")}
+            </p>
           )}
 
           {/* Submit */}

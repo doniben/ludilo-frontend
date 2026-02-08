@@ -76,5 +76,22 @@
     "status_queued": "Envicigita",
     "status_processing": "Prilaborante",
     "status_done": "Preta"
+  },
+  "library": {
+    "title": "Biblioteko",
+    "subtitle": "Serĉu inter miloj da kantoj pretaj por praktikado",
+    "search_placeholder": "Serĉi laŭ titolo aŭ artisto...",
+    "results_count": "{{count}} rezultoj",
+    "no_results": "Neniuj kantoj trovitaj",
+    "prev": "Antaŭa",
+    "next": "Sekva",
+    "source_all": "Ĉiuj",
+    "source_guitarpro": "Guitar Pro",
+    "source_lakh": "Lakh MIDI",
+    "source_la-midi": "LA MIDI",
+    "match_found": "Ni trovis ĉi tiun kanton en nia biblioteko!",
+    "match_confirm": "Ĉu ĉi tiu estas via kanto?",
+    "match_yes": "Jes, uzi ĉi tiun version",
+    "match_no": "Ne, prilabori mian aŭdion"
   }
 }
