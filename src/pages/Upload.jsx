@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpTrayIcon, MusicalNoteIcon, CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { getFingerprint } from "../utils/fingerprint";
 
 const ALLOWED = ["mp3", "wav", "m4a", "flac", "ogg"];
 const API = import.meta.env.VITE_API_URL;
@@ -35,16 +36,29 @@ export default function Upload() {
   };
 
   const checkLibrary = async (filename) => {
-    const title = filename.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").trim();
-    if (title.length < 2) return;
     setChecking(true);
     try {
+      // 1. Intentar fingerprint (AcoustID)
+      const { fingerprint, duration } = await getFingerprint(file);
+      const identifyRes = await fetch(`${API}/library/identify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fingerprint, duration }),
+      });
+      const identifyData = await identifyRes.json();
+      if (identifyData.match && identifyData.libraryMatch) {
+        setLibraryMatch({ ...identifyData.libraryMatch, acoustidTitle: identifyData.title, acoustidArtist: identifyData.artist, score: identifyData.score });
+        return;
+      }
+      // 2. Fallback: buscar por nombre de archivo
+      const title = filename.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").trim();
+      if (title.length < 2) return;
       const res = await fetch(`${API}/library/search?q=${encodeURIComponent(title)}&pageSize=3`);
       const data = await res.json();
       if (data.results && data.results.length > 0) {
         setLibraryMatch(data.results[0]);
       }
-    } catch { /* ignore */ }
+    } catch { /* fingerprint puede fallar en algunos formatos, no es crítico */ }
     finally { setChecking(false); }
   };
 
