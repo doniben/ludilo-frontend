@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MagnifyingGlassIcon, MusicalNoteIcon, FunnelIcon } from "@heroicons/react/24/outline";
+import MidiPreview from "../components/MidiPreview";
 
 const API = import.meta.env.VITE_API_URL;
 const SOURCES = ["all", "guitarpro", "lakh", "la-midi"];
 
 export default function Library() {
   const { t } = useTranslation();
-  const [query, setQuery] = useState("");
+  const [searchParams] = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get("q") || "");
   const [results, setResults] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -124,6 +127,7 @@ export default function Library() {
                       <p className="font-medium text-gray-900 dark:text-white truncate">{item.title}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{item.artist}</p>
                     </div>
+                    <MidiPreview blobPath={item.blobPath} title={item.title} />
                     <span className="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 uppercase">
                       {item.format}
                     </span>

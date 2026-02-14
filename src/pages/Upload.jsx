@@ -32,14 +32,14 @@ export default function Upload() {
     setError("");
     setFile(f);
     setLibraryMatch(null);
-    checkLibrary(f.name);
+    checkLibrary(f);
   };
 
-  const checkLibrary = async (filename) => {
+  const checkLibrary = async (audioFile) => {
     setChecking(true);
     try {
       // 1. Intentar fingerprint (AcoustID)
-      const { fingerprint, duration } = await getFingerprint(file);
+      const { fingerprint, duration } = await getFingerprint(audioFile);
       const identifyRes = await fetch(`${API}/library/identify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,7 +51,7 @@ export default function Upload() {
         return;
       }
       // 2. Fallback: buscar por nombre de archivo
-      const title = filename.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").trim();
+      const title = audioFile.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").trim();
       if (title.length < 2) return;
       const res = await fetch(`${API}/library/search?q=${encodeURIComponent(title)}&pageSize=3`);
       const data = await res.json();

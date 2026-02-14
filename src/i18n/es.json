@@ -60,6 +60,7 @@
     "INVALID_JSON": "Datos inválidos",
     "NETWORK_ERROR": "No se pudo conectar al servidor",
     "UPLOAD_FAILED": "Error al subir el archivo",
+    "UPLOAD_LIMIT_FREE": "Plan gratuito: 1 canción cada 3 días. Actualiza a premium para subir sin límites.",
     "UNKNOWN": "Ocurrió un error inesperado"
   },
   "upload": {
@@ -92,6 +93,7 @@
     "match_found": "¡Encontramos esta canción en nuestra biblioteca!",
     "match_confirm": "¿Es esta tu canción?",
     "match_yes": "Sí, usar esta versión",
-    "match_no": "No, procesar mi audio"
+    "match_no": "No, procesar mi audio",
+    "more_options": "Ver más opciones"
   }
 }

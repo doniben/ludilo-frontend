@@ -60,6 +60,7 @@
     "INVALID_JSON": "Nevalidaj datumoj",
     "NETWORK_ERROR": "Ne eblis konektiĝi al la servilo",
     "UPLOAD_FAILED": "Eraro dum alŝuto de dosiero",
+    "UPLOAD_LIMIT_FREE": "Senpaga plano: 1 kanto ĉiun 3 tagojn. Ĝisdatigu al premium por senlimaj alŝutoj.",
     "UNKNOWN": "Okazis neatendita eraro"
   },
   "upload": {
@@ -92,6 +93,7 @@
     "match_found": "Ni trovis ĉi tiun kanton en nia biblioteko!",
     "match_confirm": "Ĉu ĉi tiu estas via kanto?",
     "match_yes": "Jes, uzi ĉi tiun version",
-    "match_no": "Ne, prilabori mian aŭdion"
+    "match_no": "Ne, prilabori mian aŭdion",
+    "more_options": "Vidi pliajn opciojn"
   }
 }

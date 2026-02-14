@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FireIcon, MusicalNoteIcon, TrophyIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import { motion, AnimatePresence } from "framer-motion";
+import { FireIcon, MusicalNoteIcon, TrophyIcon, ArrowUpTrayIcon, CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import MidiPreview from "../components/MidiPreview";
 
 const ALLOWED = ["mp3", "wav", "m4a", "flac", "ogg"];
+const API = import.meta.env.VITE_API_URL;
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -16,6 +18,8 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+  const [libraryMatch, setLibraryMatch] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   const token = localStorage.getItem("ludilo-token");
   const [songs, setSongs] = useState([]);
@@ -56,6 +60,28 @@ export default function Dashboard() {
     }
     setError("");
     setFile(f);
+    setLibraryMatch(null);
+    checkLibrary(f);
+  };
+
+  const checkLibrary = async (audioFile) => {
+    setChecking(true);
+    try {
+      // Clean filename: remove extension, track numbers, separators, YouTube suffixes
+      let title = audioFile.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").trim();
+      title = title.replace(/^\d+[\s.\-_]+/, "").trim();
+      title = title.replace(/\s*\(.*?(official|video|audio|lyric|hd|hq|live).*?\)\s*/gi, " ").trim();
+      title = title.replace(/\s*\[.*?\]\s*/g, " ").trim();
+      title = title.replace(/\s{2,}/g, " ").trim();
+      console.log("[Ludilo] Búsqueda por nombre:", title);
+      if (title.length >= 2) {
+        const res = await fetch(`${API}/library/search?q=${encodeURIComponent(title)}&pageSize=3`);
+        const data = await res.json();
+        console.log("[Ludilo] Búsqueda:", data.total, "resultados");
+        if (data.results && data.results.length > 0) setLibraryMatch(data.results[0]);
+      }
+    } catch {}
+    finally { setChecking(false); }
   };
 
   const handleDrop = (e) => {
@@ -86,6 +112,33 @@ export default function Dashboard() {
         body: file,
       });
       if (!uploadRes.ok) throw new Error("UPLOAD_FAILED");
+      setProgress(50);
+
+      // Try server-side AcoustID only if name search didn't find anything
+      if (!libraryMatch) {
+        console.log("[Ludilo] Identificando con fpcalc en servidor...");
+        const identifyRes = await fetch(`${API}/library/identify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ blobPath: data.blobPath }),
+        });
+        const identifyData = await identifyRes.json();
+        console.log("[Ludilo] Server identify:", identifyData);
+
+        if (identifyData.match && identifyData.libraryMatch) {
+          setUploading(false);
+          setProgress(0);
+          setLibraryMatch({
+            ...identifyData.libraryMatch,
+            acoustidTitle: identifyData.title,
+            acoustidArtist: identifyData.artist,
+            score: identifyData.score,
+            _songId: data.songId,
+          });
+          return;
+        }
+      }
+
       setProgress(70);
 
       const processRes = await fetch(`${import.meta.env.VITE_API_URL}/songs/${data.songId}/process`, {
@@ -185,7 +238,70 @@ export default function Dashboard() {
           )}
 
           {file && !uploading && (
-            <button onClick={handleUpload} className="btn-primary w-full mt-4 py-3">{t("nav.upload")}</button>
+            <>
+              <AnimatePresence>
+                {libraryMatch && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="mt-4 p-4 rounded-xl bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20"
+                  >
+                    <div className="flex items-start gap-3">
+                      <CheckCircleIcon className="w-6 h-6 text-ludilo-600 dark:text-neon-cyan flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white text-sm">{t("library.match_found")}</p>
+                        <p className="text-ludilo-700 dark:text-neon-cyan font-medium mt-1">
+                          {libraryMatch.acoustidArtist || libraryMatch.artist} — {libraryMatch.acoustidTitle || libraryMatch.title}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t("library.match_confirm")}</p>
+                        <div className="flex items-center gap-2 mt-3">
+                          <MidiPreview blobPath={libraryMatch.blobPath} title={libraryMatch.acoustidTitle || libraryMatch.title} />
+                          <button onClick={async () => {
+                          try {
+                            const res = await fetch(`${API}/library/use`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ blobPath: libraryMatch.blobPath, title: libraryMatch.acoustidTitle || libraryMatch.title, artist: libraryMatch.acoustidArtist || libraryMatch.artist, source: libraryMatch.source, format: libraryMatch.format }),
+                            });
+                            if (res.ok) {
+                              // Delete the orphan uploading song if it exists
+                              if (libraryMatch._songId) {
+                                await fetch(`${API}/songs/${libraryMatch._songId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                              }
+                              setFile(null); setLibraryMatch(null); fetchSongs();
+                            }
+                          } catch {}
+                        }} className="btn-primary text-xs px-3 py-1.5">{t("library.match_yes")}</button>
+                          <button onClick={async () => {
+                            if (libraryMatch._songId) {
+                              // Post-upload: enqueue for processing
+                              await fetch(`${API}/songs/${libraryMatch._songId}/process`, {
+                                method: "POST", headers: { Authorization: `Bearer ${token}` },
+                              });
+                              setFile(null); setLibraryMatch(null); fetchSongs();
+                            } else {
+                              setLibraryMatch(null);
+                            }
+                          }} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">{t("library.match_no")}</button>
+                          <button onClick={() => navigate(`/library?q=${encodeURIComponent(libraryMatch.acoustidTitle || libraryMatch.title)}`)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">{t("library.more_options")}</button>
+                        </div>
+                      </div>
+                      <button onClick={() => setLibraryMatch(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <XMarkIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {checking && (
+                <p className="mt-3 text-xs text-gray-400 dark:text-gray-500 flex items-center gap-2">
+                  <span className="w-3 h-3 border border-ludilo-500 dark:border-neon-cyan border-t-transparent rounded-full animate-spin" />
+                  {t("upload.preparing")}
+                </p>
+              )}
+              <button onClick={handleUpload} className="btn-primary w-full mt-4 py-3">{t("nav.upload")}</button>
+            </>
           )}
         </motion.div>
 
