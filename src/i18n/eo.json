@@ -95,5 +95,10 @@
     "match_yes": "Jes, uzi ĉi tiun version",
     "match_no": "Ne, prilabori mian aŭdion",
     "more_options": "Vidi pliajn opciojn"
+  },
+  "song": {
+    "view_pianoroll": "Piano Roll",
+    "view_score": "Partituro",
+    "view_tab": "Tablaturo"
   }
 }

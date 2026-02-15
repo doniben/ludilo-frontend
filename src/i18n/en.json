@@ -95,5 +95,10 @@
     "match_yes": "Yes, use this version",
     "match_no": "No, process my audio",
     "more_options": "See more options"
+  },
+  "song": {
+    "view_pianoroll": "Piano Roll",
+    "view_score": "Score",
+    "view_tab": "Tablature"
   }
 }

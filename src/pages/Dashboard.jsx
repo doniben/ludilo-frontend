@@ -311,7 +311,7 @@ export default function Dashboard() {
             <h2 className="font-display font-semibold text-lg text-gray-900 dark:text-white mb-4">{t("dashboard.my_songs")}</h2>
             <div className="space-y-3">
               {songs.map((song) => (
-                <div key={song.id} className="card-solid p-4 flex items-center justify-between">
+                <div key={song.id} onClick={() => song.status === "done" && navigate(`/song/${song.id}`)} className={`card-solid p-4 flex items-center justify-between ${song.status === "done" ? "cursor-pointer hover:border-ludilo-300 dark:hover:border-neon-cyan/20" : ""}`}>
                   <div className="flex items-center gap-3">
                     <MusicalNoteIcon className="w-5 h-5 text-accent" />
                     <div>

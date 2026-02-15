@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Library from "./pages/Library";
+import SongView from "./pages/SongView";
 import "./i18n";
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/library" element={<Library />} />
+              <Route path="/song/:songId" element={<SongView />} />
             </Routes>
           </div>
           <Footer />
