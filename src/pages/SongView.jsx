@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { MusicalNoteIcon } from "@heroicons/react/24/outline";
+import AlphaTabView from "../components/AlphaTabView";
 import ScoreView from "../components/ScoreView";
 import PianoRollView from "../components/PianoRollView";
 import TabView from "../components/TabView";
@@ -14,28 +15,31 @@ export default function SongView() {
   const { songId } = useParams();
   const { t } = useTranslation();
   const [song, setSong] = useState(null);
-  const [view, setView] = useState("pianoroll");
-  const [midiUrl, setMidiUrl] = useState(null);
-  const [musicXmlUrl, setMusicXmlUrl] = useState(null);
+  const [view, setView] = useState("tab");
+  const [fileUrl, setFileUrl] = useState(null);
+  const [isGP, setIsGP] = useState(false);
   const [loading, setLoading] = useState(true);
   const token = localStorage.getItem("ludilo-token");
 
   useEffect(() => {
     const load = async () => {
       try {
-        // Get song info
         const res = await fetch(`${API}/songs/${songId}/status`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         setSong(data);
 
-        // Get MIDI preview URL
         const blobPath = data.midiFiles?.[0] || data.originalBlobPath;
         if (blobPath) {
+          const gpExtensions = [".gp3", ".gp4", ".gp5", ".gpx", ".gp"];
+          const isGpFile = gpExtensions.some((ext) => blobPath.toLowerCase().endsWith(ext));
+          setIsGP(isGpFile);
+          if (isGpFile) setView("tab");
+
           const previewRes = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(blobPath)}`);
           const previewData = await previewRes.json();
-          setMidiUrl(previewData.url);
+          setFileUrl(previewData.url);
         }
       } catch (e) {
         console.error("[Ludilo] Error loading song:", e);
@@ -85,17 +89,17 @@ export default function SongView() {
         </motion.div>
 
         {/* View content */}
-        <motion.div
-          key={view}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="card-solid p-6 min-h-[500px]"
-        >
-          {view === "pianoroll" && <PianoRollView midiUrl={midiUrl} />}
-          {view === "score" && <ScoreView midiUrl={midiUrl} musicXmlUrl={musicXmlUrl} />}
-          {view === "tab" && <TabView midiUrl={midiUrl} />}
-        </motion.div>
+        <div className="card-solid p-6 min-h-[500px]">
+          {isGP ? (
+            <AlphaTabView fileUrl={fileUrl} view={view} />
+          ) : (
+            <>
+              {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} />}
+              {view === "score" && <ScoreView musicXmlUrl={null} />}
+              {view === "tab" && <TabView midiUrl={fileUrl} />}
+            </>
+          )}
+        </div>
       </div>
     </main>
   );

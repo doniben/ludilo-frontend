@@ -14,8 +14,16 @@ export default function PianoRollView({ midiUrl }) {
 
     const load = async () => {
       setLoading(true);
+      setError(null);
       try {
+        // Check if it's a MIDI file
+        if (!midiUrl.includes(".mid")) {
+          setError("Este archivo no es MIDI. Se necesita convertir para visualizar.");
+          setLoading(false);
+          return;
+        }
         const res = await fetch(midiUrl);
+        if (!res.ok) throw new Error("No se pudo descargar");
         const arrayBuffer = await res.arrayBuffer();
         const midi = new Midi(arrayBuffer);
 

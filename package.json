@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@coderline/alphatab": "^1.8.2",
+    "@coderline/alphatab-vite": "^1.8.2",
     "@heroicons/react": "^2.2.0",
     "@tonejs/midi": "^2.0.28",
     "framer-motion": "^11.15.0",
