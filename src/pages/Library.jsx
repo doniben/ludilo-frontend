@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MagnifyingGlassIcon, MusicalNoteIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import MidiPreview from "../components/MidiPreview";
@@ -11,6 +11,7 @@ const SOURCES = ["all", "guitarpro", "lakh", "la-midi"];
 export default function Library() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [results, setResults] = useState([]);
   const [total, setTotal] = useState(0);
@@ -119,6 +120,7 @@ export default function Library() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
                     className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-surface-dark-card border border-gray-100 dark:border-white/5 hover:border-ludilo-300 dark:hover:border-neon-cyan/20 transition-all group cursor-pointer"
+                    onClick={() => navigate(`/library/view?blobPath=${encodeURIComponent(item.blobPath)}&title=${encodeURIComponent(item.title)}&artist=${encodeURIComponent(item.artist)}&source=${encodeURIComponent(item.source)}&format=${encodeURIComponent(item.format)}`)}
                   >
                     <div className="w-10 h-10 rounded-lg bg-ludilo-100 dark:bg-neon-cyan/10 flex items-center justify-center flex-shrink-0">
                       <MusicalNoteIcon className="w-5 h-5 text-ludilo-600 dark:text-neon-cyan" />

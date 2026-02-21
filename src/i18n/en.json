@@ -99,6 +99,8 @@
   "song": {
     "view_pianoroll": "Piano Roll",
     "view_score": "Score",
-    "view_tab": "Tablature"
+    "view_tab": "Tablature",
+    "add_to_songs": "Add to my songs",
+    "added": "Added"
   }
 }

@@ -25,6 +25,7 @@ export default function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/library" element={<Library />} />
               <Route path="/song/:songId" element={<SongView />} />
+              <Route path="/library/view" element={<SongView isLibraryPreview />} />
             </Routes>
           </div>
           <Footer />

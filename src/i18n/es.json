@@ -99,6 +99,8 @@
   "song": {
     "view_pianoroll": "Piano Roll",
     "view_score": "Partitura",
-    "view_tab": "Tablatura"
+    "view_tab": "Tablatura",
+    "add_to_songs": "Agregar a mis canciones",
+    "added": "Agregada"
   }
 }

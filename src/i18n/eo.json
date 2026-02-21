@@ -99,6 +99,8 @@
   "song": {
     "view_pianoroll": "Piano Roll",
     "view_score": "Partituro",
-    "view_tab": "Tablaturo"
+    "view_tab": "Tablaturo",
+    "add_to_songs": "Aldoni al miaj kantoj",
+    "added": "Aldonita"
   }
 }

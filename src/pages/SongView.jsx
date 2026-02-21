@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { MusicalNoteIcon, PlusIcon } from "@heroicons/react/24/outline";
 import AlphaTabView from "../components/AlphaTabView";
 import ScoreView from "../components/ScoreView";
 import PianoRollView from "../components/PianoRollView";
@@ -11,32 +11,43 @@ import TabView from "../components/TabView";
 const API = import.meta.env.VITE_API_URL;
 const VIEWS = ["pianoroll", "score", "tab"];
 
-export default function SongView() {
+export default function SongView({ isLibraryPreview }) {
   const { songId } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [song, setSong] = useState(null);
   const [view, setView] = useState("tab");
   const [fileUrl, setFileUrl] = useState(null);
   const [isGP, setIsGP] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [added, setAdded] = useState(false);
   const token = localStorage.getItem("ludilo-token");
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API}/songs/${songId}/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        setSong(data);
+        let blobPath;
+        if (isLibraryPreview) {
+          blobPath = searchParams.get("blobPath");
+          setSong({
+            title: `${searchParams.get("artist") || ""} — ${searchParams.get("title") || ""}`.replace(/^\s*—\s*/, ""),
+            blobPath,
+            source: searchParams.get("source") || "",
+            format: searchParams.get("format") || "",
+          });
+        } else {
+          const res = await fetch(`${API}/songs/${songId}/status`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          setSong(data);
+          blobPath = data.midiFiles?.[0] || data.originalBlobPath;
+        }
 
-        const blobPath = data.midiFiles?.[0] || data.originalBlobPath;
         if (blobPath) {
-          const gpExtensions = [".gp3", ".gp4", ".gp5", ".gpx", ".gp"];
-          const isGpFile = gpExtensions.some((ext) => blobPath.toLowerCase().endsWith(ext));
-          setIsGP(isGpFile);
-          if (isGpFile) setView("tab");
-
+          const gpExts = [".gp3", ".gp4", ".gp5", ".gpx", ".gp"];
+          setIsGP(gpExts.some((ext) => blobPath.toLowerCase().endsWith(ext)));
           const previewRes = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(blobPath)}`);
           const previewData = await previewRes.json();
           setFileUrl(previewData.url);
@@ -48,7 +59,23 @@ export default function SongView() {
       }
     };
     load();
-  }, [songId, token]);
+  }, [songId, token, isLibraryPreview, searchParams]);
+
+  const addToMySongs = async () => {
+    if (!token || added) return;
+    const res = await fetch(`${API}/library/use`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        blobPath: searchParams.get("blobPath"),
+        title: searchParams.get("title") || "",
+        artist: searchParams.get("artist") || "",
+        source: searchParams.get("source") || "",
+        format: searchParams.get("format") || "",
+      }),
+    });
+    if (res.ok) setAdded(true);
+  };
 
   if (loading) {
     return (
@@ -61,7 +88,6 @@ export default function SongView() {
   return (
     <main className="min-h-screen pt-20 px-4 pb-12">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <MusicalNoteIcon className="w-6 h-6 text-accent" />
@@ -70,25 +96,42 @@ export default function SongView() {
             </h1>
           </div>
 
-          {/* View selector */}
-          <div className="flex rounded-xl bg-gray-100 dark:bg-surface-dark-card p-1">
-            {VIEWS.map((v) => (
+          <div className="flex items-center gap-3">
+            {/* Add to my songs button (library preview only) */}
+            {isLibraryPreview && token && (
               <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  view === v
-                    ? "bg-white dark:bg-surface-dark-elevated text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                onClick={addToMySongs}
+                disabled={added}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  added
+                    ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                    : "bg-ludilo-100 dark:bg-neon-cyan/10 text-ludilo-700 dark:text-neon-cyan hover:bg-ludilo-200 dark:hover:bg-neon-cyan/20"
                 }`}
               >
-                {t(`song.view_${v}`)}
+                <PlusIcon className="w-4 h-4" />
+                {added ? t("song.added") : t("song.add_to_songs")}
               </button>
-            ))}
+            )}
+
+            {/* View selector */}
+            <div className="flex rounded-xl bg-gray-100 dark:bg-surface-dark-card p-1">
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    view === v
+                      ? "bg-white dark:bg-surface-dark-elevated text-gray-900 dark:text-white shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  }`}
+                >
+                  {t(`song.view_${v}`)}
+                </button>
+              ))}
+            </div>
           </div>
         </motion.div>
 
-        {/* View content */}
         <div className="card-solid p-6 min-h-[500px]">
           {isGP ? (
             <AlphaTabView fileUrl={fileUrl} view={view} />
