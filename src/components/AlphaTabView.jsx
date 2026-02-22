@@ -17,6 +17,39 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
   const [playing, setPlaying] = useState(false);
   const [tracks, setTracks] = useState([]);
   const [activeTrack, setActiveTrack] = useState(0);
+  const [volumes, setVolumes] = useState({});
+  const [showMixer, setShowMixer] = useState(false);
+  const [soundfont, setSoundfont] = useState("GeneralUser");
+  const [sfLoading, setSfLoading] = useState(false);
+  const [sfCached, setSfCached] = useState({ Sonivox: true, GeneralUser: true });
+
+  const SOUNDFONTS = {
+    Sonivox: { label: "Fast (1MB)", path: "https://stludilo.blob.core.windows.net/library/soundfonts/sonivox.sf2" },
+    GeneralUser: { label: "HQ (8MB)", path: "https://stludilo.blob.core.windows.net/library/soundfonts/GeneralUser.sf3" },
+    FluidR3: { label: "Studio (23MB)", path: "https://stludilo.blob.core.windows.net/library/soundfonts/FluidR3Mono_GM.sf3" },
+    Arachno: { label: "Pro (148MB)", path: "https://stludilo.blob.core.windows.net/library/soundfonts/Arachno.sf2" },
+    SGM: { label: "Ultra (235MB)", path: "https://stludilo.blob.core.windows.net/library/soundfonts/SGM-V2.01.sf2" },
+  };
+
+  const changeSoundfont = async (sf) => {
+    setSoundfont(sf);
+    setSfLoading(true);
+    try {
+      const url = SOUNDFONTS[sf].path;
+      const cache = await caches.open("ludilo-soundfonts");
+      let res = await cache.match(url);
+      if (!res) {
+        res = await fetch(url);
+        cache.put(url, res.clone());
+      }
+      const buf = await res.arrayBuffer();
+      if (synthRef.current) await synthRef.current.soundBankManager.addSoundBank(buf, "main");
+      setSfCached((c) => ({ ...c, [sf]: true }));
+    } catch (e) {
+      console.error("[Ludilo] Soundfont load error:", e);
+    }
+    setSfLoading(false);
+  };
   const [synthReady, setSynthReady] = useState(false);
 
   // Initialize SpessaSynth once
@@ -29,7 +62,14 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       synth.connect(ctx.destination);
 
       // Load soundfont
-      const sfResponse = await fetch("/soundfont/sonivox.sf2");
+      // Load soundfont (with cache)
+      const sfUrl = "https://stludilo.blob.core.windows.net/library/soundfonts/GeneralUser.sf3";
+      const cache = await caches.open("ludilo-soundfonts");
+      let sfResponse = await cache.match(sfUrl);
+      if (!sfResponse) {
+        sfResponse = await fetch(sfUrl);
+        cache.put(sfUrl, sfResponse.clone());
+      }
       const sfBuffer = await sfResponse.arrayBuffer();
       await synth.soundBankManager.addSoundBank(sfBuffer, "main");
 
@@ -65,12 +105,6 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       const midiBytes = midiFile.toBinary();
 
       seqRef.current.loadNewSongList([{ binary: midiBytes.buffer }]);
-      // Mute all channels except the active track
-      const trackChannels = score.tracks.map((t) => t.playbackInfo?.primaryChannel ?? -1);
-      for (let ch = 0; ch < 16; ch++) {
-        const isMuted = trackChannels[activeTrack] !== ch;
-        synthRef.current.channelManager?.setChannelVolume(ch, isMuted ? 0 : 1);
-      }
       seqRef.current.play();
       setPlaying(true);
 
@@ -198,17 +232,75 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={startPlayback} className="px-4 py-2 rounded-lg text-sm font-medium bg-ludilo-100 dark:bg-neon-cyan/10 text-ludilo-700 dark:text-neon-cyan hover:bg-ludilo-200 dark:hover:bg-neon-cyan/20 transition-colors">
-          {playing ? "⏸ Pause" : "▶ Play"}
-        </button>
-        <button onClick={stopPlayback} className="px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
-          ⏹ Stop
-        </button>
-        {tracks.length > 1 && (
-          <select value={activeTrack} onChange={(e) => setActiveTrack(Number(e.target.value))} className="px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 border-0 focus:ring-2 focus:ring-ludilo-500/50">
-            {tracks.map((t) => <option key={t.index} value={t.index}>{t.name}</option>)}
-          </select>
+      <div className="mb-4 space-y-3">
+        {/* Transport controls */}
+        <div className="flex items-center gap-3">
+          <button onClick={startPlayback} className="px-4 py-2 rounded-lg text-sm font-medium bg-ludilo-100 dark:bg-neon-cyan/10 text-ludilo-700 dark:text-neon-cyan hover:bg-ludilo-200 dark:hover:bg-neon-cyan/20 transition-colors">
+            {playing ? "⏸ Pause" : "▶ Play"}
+          </button>
+          <button onClick={stopPlayback} className="px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+            ⏹ Stop
+          </button>
+          {tracks.length > 1 && (
+            <>
+              <select value={activeTrack} onChange={(e) => setActiveTrack(Number(e.target.value))} className="px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 border-0 focus:ring-2 focus:ring-ludilo-500/50">
+                {tracks.map((t) => <option key={t.index} value={t.index}>{t.name}</option>)}
+              </select>
+              <button onClick={() => setShowMixer(!showMixer)} className={`px-3 py-2 rounded-lg text-sm transition-colors ${showMixer ? "bg-ludilo-200 dark:bg-neon-cyan/20 text-ludilo-700 dark:text-neon-cyan" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
+                🎚
+              </button>
+              <select
+                value={soundfont}
+                onChange={(e) => changeSoundfont(e.target.value)}
+                disabled={sfLoading}
+                className="px-2 py-2 rounded-lg text-xs bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 border-0 focus:ring-2 focus:ring-ludilo-500/50"
+              >
+                {Object.entries(SOUNDFONTS).map(([key, { label }]) => (
+                  <option key={key} value={key}>
+                    {label}{sfCached[key] && !["Sonivox","GeneralUser"].includes(key) ? " ✓" : ""}{sfLoading && soundfont === key ? " ⏳" : ""}
+                  </option>
+                ))}
+              </select>
+              {sfLoading && <span className="w-3 h-3 border border-ludilo-500 dark:border-neon-cyan border-t-transparent rounded-full animate-spin" />}
+            </>
+          )}
+        </div>
+
+        {/* Mixer */}
+        {showMixer && tracks.length > 1 && (
+          <div className="flex flex-wrap gap-3">
+            {tracks.map((t) => {
+              const vol = volumes[t.index] ?? 100;
+              const channel = apiRef.current?.score?.tracks[t.index]?.playbackInfo?.primaryChannel ?? t.index;
+              return (
+                <div key={t.index} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-gray-50 dark:bg-white/5">
+                  <button
+                    onClick={() => {
+                      const newVol = vol > 0 ? 0 : 100;
+                      setVolumes((v) => ({ ...v, [t.index]: newVol }));
+                      if (synthRef.current) synthRef.current.controllerChange(channel, 7, newVol);
+                    }}
+                    className={`text-xs w-5 h-5 rounded flex items-center justify-center font-bold ${vol === 0 ? "bg-red-500/20 text-red-500" : "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"}`}
+                  >
+                    {vol === 0 ? "M" : "♪"}
+                  </button>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 w-16 truncate">{t.name}</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="127"
+                    value={vol > 0 ? Math.round(vol * 1.27) : 0}
+                    onChange={(e) => {
+                      const val = Math.round(Number(e.target.value) / 1.27);
+                      setVolumes((v) => ({ ...v, [t.index]: val }));
+                      if (synthRef.current) synthRef.current.controllerChange(channel, 7, Number(e.target.value));
+                    }}
+                    className="w-16 h-1 accent-ludilo-500 dark:accent-neon-cyan"
+                  />
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
