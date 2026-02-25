@@ -43,7 +43,17 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         cache.put(url, res.clone());
       }
       const buf = await res.arrayBuffer();
-      if (synthRef.current) await synthRef.current.soundBankManager.addSoundBank(buf, "main");
+      if (synthRef.current) {
+        await synthRef.current.soundBankManager.addSoundBank(buf, "main");
+        // Re-send program changes to restore instruments without restarting
+        if (apiRef.current?.score) {
+          for (const track of apiRef.current.score.tracks) {
+            const ch = track.playbackInfo?.primaryChannel ?? 0;
+            const program = track.playbackInfo?.program ?? 0;
+            synthRef.current.programChange(ch, program);
+          }
+        }
+      }
       setSfCached((c) => ({ ...c, [sf]: true }));
     } catch (e) {
       console.error("[Ludilo] Soundfont load error:", e);
@@ -226,6 +236,14 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
     }
     if (playing) stopPlayback();
   }, [activeTrack]);
+
+  useEffect(() => {
+    if (apiRef.current) {
+      apiRef.current.settings.display.staveProfile = view === "score" ? 1 : view === "tab" ? 4 : 3;
+      apiRef.current.updateSettings();
+      apiRef.current.render();
+    }
+  }, [view]);
 
   if (!fileUrl) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">No hay archivo disponible</p></div>;
   if (error) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">{error}</p></div>;
