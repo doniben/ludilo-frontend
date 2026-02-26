@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Sequencer, WorkletSynthesizer } from "spessasynth_lib";
+import { PlayIcon, PauseIcon, StopIcon, ArrowPathIcon, AdjustmentsHorizontalIcon } from "@heroicons/react/24/solid";
 
 export default function AlphaTabView({ fileUrl, view = "tab" }) {
   const wrapperRef = useRef(null);
@@ -20,6 +21,9 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
   const [volumes, setVolumes] = useState({});
   const [showMixer, setShowMixer] = useState(false);
   const [soundfont, setSoundfont] = useState("GeneralUser");
+  const [speed, setSpeed] = useState(100);
+  const [loopStart, setLoopStart] = useState(null);
+  const [loopEnd, setLoopEnd] = useState(null);
   const [sfLoading, setSfLoading] = useState(false);
   const [sfCached, setSfCached] = useState({ Sonivox: true, GeneralUser: true });
 
@@ -69,7 +73,10 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       ctxRef.current = ctx;
       await ctx.audioWorklet.addModule("/spessasynth_processor.min.js");
       const synth = new WorkletSynthesizer(ctx);
-      synth.connect(ctx.destination);
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 2.0; // Boost volume
+      synth.connect(gainNode);
+      gainNode.connect(ctx.destination);
 
       // Load soundfont
       // Load soundfont (with cache)
@@ -128,32 +135,36 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         const score = apiRef.current.score;
         const tempo = score.tempo;
         const allBars = tickLookup.staffSystems.flatMap(sg => sg.bars);
-        const barTimes = []; // start time of each bar in seconds
+        const barTimesRef = [];
         let cumTime = 0;
         for (let i = 0; i < score.masterBars.length; i++) {
-          barTimes.push(cumTime);
+          barTimesRef.push(cumTime);
           const mb = score.masterBars[i];
           const beatsInBar = (mb.timeSignatureNumerator || 4);
           const beatValue = (mb.timeSignatureDenominator || 4);
           const secForBar = (60 / tempo) * beatsInBar * (4 / beatValue);
           cumTime += secForBar;
         }
-        barTimes.push(cumTime); // end time
+        barTimesRef.push(cumTime);
 
         const animate = () => {
           if (!seqRef.current || seqRef.current.paused) return;
           const time = seqRef.current.currentTime + 0.25;
 
-          // Find which bar we're in
+          // Find which bar we're in (barTimes are at 100% speed, scale by playback rate)
+          const rate = seqRef.current.playbackRate || 1;
           let barIdx = 0;
-          for (let i = 0; i < barTimes.length - 1; i++) {
-            if (time >= barTimes[i] && time < barTimes[i + 1]) { barIdx = i; break; }
-            if (i === barTimes.length - 2) barIdx = i;
+          for (let i = 0; i < barTimesRef.length - 1; i++) {
+            const scaledStart = barTimesRef[i] / rate;
+            const scaledEnd = barTimesRef[i + 1] / rate;
+            if (time >= scaledStart && time < scaledEnd) { barIdx = i; break; }
+            if (i === barTimesRef.length - 2) barIdx = i;
           }
 
           if (barIdx < allBars.length && allBars[barIdx]) {
-            const barDuration = barTimes[barIdx + 1] - barTimes[barIdx];
-            const barProgress = (time - barTimes[barIdx]) / barDuration;
+            const barStart = barTimesRef[barIdx] / rate;
+            const barDuration = (barTimesRef[barIdx + 1] - barTimesRef[barIdx]) / rate;
+            const barProgress = (time - barStart) / barDuration;
             const rb = allBars[barIdx].realBounds || allBars[barIdx].visualBounds;
             const x = rb.x + (rb.w * Math.min(barProgress, 1));
             const y = rb.y;
@@ -168,6 +179,10 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
                 containerRef.current.scrollTop = y - 20;
               }
             }
+          }
+          // Loop check
+          if (loopStart !== null && loopEnd !== null && time >= loopEnd) {
+            seqRef.current.currentTime = loopStart;
           }
           animRef.current = requestAnimationFrame(animate);
         };
@@ -239,11 +254,73 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
 
   useEffect(() => {
     if (apiRef.current) {
-      apiRef.current.settings.display.staveProfile = view === "score" ? 1 : view === "tab" ? 4 : 3;
+      if (pianoRollRef.current) pianoRollRef.current.style.display = "none";
+      if (atContainerRef.current) atContainerRef.current.style.display = "";
+      apiRef.current.settings.display.staveProfile = view === "score" ? 1 : 4;
       apiRef.current.updateSettings();
       apiRef.current.render();
     }
   }, [view]);
+
+  const pianoRollRef = useRef(null);
+
+  const renderPianoRoll = () => {
+    if (!apiRef.current?.score || !pianoRollRef.current) return;
+    const canvas = pianoRollRef.current;
+    const ctx = canvas.getContext("2d");
+    const score = apiRef.current.score;
+    const track = score.tracks[activeTrack];
+    const tempo = score.tempo;
+    const pxPerSec = 80;
+    const noteH = 4;
+
+    // Collect all notes
+    const notes = [];
+    for (const staff of track.staves) {
+      for (const bar of staff.bars) {
+        for (const voice of bar.voices) {
+          for (const beat of voice.beats) {
+            const startSec = (beat.absolutePlaybackStart / 960) * (60 / tempo);
+            const durSec = (beat.playbackDuration / 960) * (60 / tempo);
+            for (const note of beat.notes) {
+              if (!note.isTieDestination) {
+                notes.push({ midi: note.realValue, start: startSec, dur: durSec });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const duration = notes.length > 0 ? Math.max(...notes.map(n => n.start + n.dur)) : 10;
+    const width = Math.max(canvas.parentElement.clientWidth, duration * pxPerSec);
+    const height = 128 * noteH;
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.fillStyle = "#0a0a0f";
+    ctx.fillRect(0, 0, width, height);
+
+    // Grid
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    for (let i = 0; i < 128; i += 12) {
+      ctx.beginPath();
+      ctx.moveTo(0, (127 - i) * noteH);
+      ctx.lineTo(width, (127 - i) * noteH);
+      ctx.stroke();
+    }
+
+    // Notes
+    ctx.fillStyle = "#06ffd2";
+    for (const n of notes) {
+      const x = n.start * pxPerSec;
+      const y = (127 - n.midi) * noteH;
+      const w = Math.max(2, n.dur * pxPerSec);
+      ctx.globalAlpha = 0.8;
+      ctx.fillRect(x, y, w, noteH - 1);
+    }
+    ctx.globalAlpha = 1;
+  };
 
   if (!fileUrl) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">No hay archivo disponible</p></div>;
   if (error) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">{error}</p></div>;
@@ -253,11 +330,41 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       <div className="mb-4 space-y-3">
         {/* Transport controls */}
         <div className="flex items-center gap-3">
-          <button onClick={startPlayback} className="px-4 py-2 rounded-lg text-sm font-medium bg-ludilo-100 dark:bg-neon-cyan/10 text-ludilo-700 dark:text-neon-cyan hover:bg-ludilo-200 dark:hover:bg-neon-cyan/20 transition-colors">
-            {playing ? "⏸ Pause" : "▶ Play"}
+          <button onClick={startPlayback} className="px-3 py-2 rounded-lg text-sm font-medium bg-ludilo-100 dark:bg-neon-cyan/10 text-ludilo-700 dark:text-neon-cyan hover:bg-ludilo-200 dark:hover:bg-neon-cyan/20 transition-colors">
+            {playing ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4" />}
           </button>
           <button onClick={stopPlayback} className="px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
-            ⏹ Stop
+            <StopIcon className="w-4 h-4" />
+          </button>
+          {/* Speed control */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-500 dark:text-gray-400">{speed}%</span>
+            <input
+              type="range" min="25" max="150" step="5" value={speed}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setSpeed(val);
+                if (seqRef.current) seqRef.current.playbackRate = val / 100;
+              }}
+              className="w-20 h-1 accent-ludilo-500 dark:accent-neon-cyan"
+            />
+          </div>
+          {/* Loop toggle */}
+          <button
+            onClick={() => {
+              if (loopStart !== null) {
+                setLoopStart(null); setLoopEnd(null);
+                if (seqRef.current) seqRef.current.loopCount = 0;
+              } else if (seqRef.current) {
+                const time = seqRef.current.currentTime;
+                setLoopStart(time);
+                setLoopEnd(time + 10);
+                seqRef.current.loopCount = Infinity;
+              }
+            }}
+            className={`px-3 py-2 rounded-lg text-sm transition-colors ${loopStart !== null ? "bg-ludilo-200 dark:bg-neon-cyan/20 text-ludilo-700 dark:text-neon-cyan" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"}`}
+          >
+            <ArrowPathIcon className="w-4 h-4" />
           </button>
           {tracks.length > 1 && (
             <>
@@ -265,7 +372,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
                 {tracks.map((t) => <option key={t.index} value={t.index}>{t.name}</option>)}
               </select>
               <button onClick={() => setShowMixer(!showMixer)} className={`px-3 py-2 rounded-lg text-sm transition-colors ${showMixer ? "bg-ludilo-200 dark:bg-neon-cyan/20 text-ludilo-700 dark:text-neon-cyan" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
-                🎚
+                <AdjustmentsHorizontalIcon className="w-4 h-4" />
               </button>
               <select
                 value={soundfont}
@@ -328,9 +435,10 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         </div>
       )}
 
-      <div className="relative" style={{ height: "600px", overflow: "auto" }} ref={containerRef}>
-        <div ref={cursorRef} className="absolute z-20 pointer-events-none" style={{ display: "none", width: "2px", backgroundColor: "#06ffd2", boxShadow: "0 0 8px #06ffd2" }} />
+      <div className="relative" style={{ height: "calc(100vh - 220px)", overflow: "auto" }} ref={containerRef}>
+        <div ref={cursorRef} className="absolute z-20 pointer-events-none bg-ludilo-700 dark:bg-[#06ffd2] dark:shadow-[0_0_8px_#06ffd2]" style={{ display: "none", width: "2px" }} />
         <div className="dark:invert dark:hue-rotate-180" ref={atContainerRef} />
+        <canvas ref={pianoRollRef} className="block" style={{ display: "none" }} />
       </div>
     </div>
   );
