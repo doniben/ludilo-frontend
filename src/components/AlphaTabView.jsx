@@ -54,7 +54,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
           for (const track of apiRef.current.score.tracks) {
             const ch = track.playbackInfo?.primaryChannel ?? 0;
             const program = track.playbackInfo?.program ?? 0;
-            synthRef.current.programChange(ch, program);
+            try { synthRef.current.programChange(ch, program); } catch {}
           }
         }
       }
@@ -127,7 +127,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
 
       // Start cursor animation
       const tickLookup = apiRef.current.renderer?.boundsLookup;
-      if (tickLookup && cursorRef.current) {
+      if (tickLookup && cursorRef.current && view !== "pianoroll") {
         cursorRef.current.style.display = "block";
         if (containerRef.current) containerRef.current.scrollTop = 0;
 
@@ -254,27 +254,36 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
 
   useEffect(() => {
     if (apiRef.current) {
-      if (pianoRollRef.current) pianoRollRef.current.style.display = "none";
-      if (atContainerRef.current) atContainerRef.current.style.display = "";
-      apiRef.current.settings.display.staveProfile = view === "score" ? 1 : 4;
-      apiRef.current.updateSettings();
-      apiRef.current.render();
+      if (view === "pianoroll") {
+        if (atContainerRef.current) atContainerRef.current.style.display = "none";
+        if (cursorRef.current) cursorRef.current.style.display = "none";
+        if (pianoRollRef.current) {
+          pianoRollRef.current.style.display = "block";
+          startPianoRoll();
+        }
+      } else {
+        if (atContainerRef.current) atContainerRef.current.style.display = "";
+        if (pianoRollRef.current) pianoRollRef.current.style.display = "none";
+        if (pianoAnimRef.current) cancelAnimationFrame(pianoAnimRef.current);
+        apiRef.current.settings.display.staveProfile = view === "score" ? 1 : 4;
+        apiRef.current.updateSettings();
+        apiRef.current.render();
+      }
     }
-  }, [view]);
+  }, [view, activeTrack]);
 
   const pianoRollRef = useRef(null);
+  const pianoAnimRef = useRef(null);
+  const notesDataRef = useRef([]);
 
-  const renderPianoRoll = () => {
+  const startPianoRoll = () => {
     if (!apiRef.current?.score || !pianoRollRef.current) return;
     const canvas = pianoRollRef.current;
-    const ctx = canvas.getContext("2d");
     const score = apiRef.current.score;
     const track = score.tracks[activeTrack];
     const tempo = score.tempo;
-    const pxPerSec = 80;
-    const noteH = 4;
 
-    // Collect all notes
+    // Collect notes
     const notes = [];
     for (const staff of track.staves) {
       for (const bar of staff.bars) {
@@ -283,7 +292,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
             const startSec = (beat.absolutePlaybackStart / 960) * (60 / tempo);
             const durSec = (beat.playbackDuration / 960) * (60 / tempo);
             for (const note of beat.notes) {
-              if (!note.isTieDestination) {
+              if (!note.isTieDestination && note.realValue > 0) {
                 notes.push({ midi: note.realValue, start: startSec, dur: durSec });
               }
             }
@@ -291,35 +300,84 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         }
       }
     }
+    notesDataRef.current = notes;
 
-    const duration = notes.length > 0 ? Math.max(...notes.map(n => n.start + n.dur)) : 10;
-    const width = Math.max(canvas.parentElement.clientWidth, duration * pxPerSec);
-    const height = 128 * noteH;
-    canvas.width = width;
-    canvas.height = height;
+    // Animate
+    const animate = () => {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.parentElement.clientWidth;
+      const h = canvas.parentElement.clientHeight;
+      canvas.width = w;
+      canvas.height = h;
 
-    ctx.fillStyle = "#0a0a0f";
-    ctx.fillRect(0, 0, width, height);
+      const currentTime = seqRef.current?.currentTime || 0;
+      const rate = seqRef.current?.playbackRate || 1;
+      const windowSec = 4; // show 4 seconds of upcoming notes
+      const pxPerSec = h / windowSec;
 
-    // Grid
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
-    for (let i = 0; i < 128; i += 12) {
+      // Background
+      ctx.fillStyle = "#0a0a0f";
+      ctx.fillRect(0, 0, w, h);
+
+      // Piano keyboard at bottom
+      const midiMin = 36; // C2
+      const midiMax = 96; // C7
+      const totalKeys = midiMax - midiMin;
+      const keyW = w / totalKeys;
+
+      // Subtle vertical guides
+      ctx.strokeStyle = "rgba(6, 255, 210, 0.03)";
+      for (let i = 0; i < totalKeys; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * keyW, 0);
+        ctx.lineTo(i * keyW, h);
+        ctx.stroke();
+      }
+
+      // Draw falling notes with glow
+      const colors = ["#06ffd2", "#ff06c4", "#8b5cf6", "#fbbf24"];
+      for (const note of notes) {
+        if (note.midi < midiMin || note.midi >= midiMax) continue;
+        const noteStart = note.start / rate;
+        const noteDur = note.dur / rate;
+        const relStart = noteStart - currentTime;
+        const relEnd = relStart + noteDur;
+        if (relEnd < 0 || relStart > windowSec) continue;
+
+        const x = (note.midi - midiMin) * keyW;
+        const yBottom = h - (relStart * pxPerSec);
+        const yTop = h - (relEnd * pxPerSec);
+        const noteHeight = yBottom - yTop;
+        const isActive = relStart <= 0 && relEnd > 0;
+        const color = colors[note.midi % 4];
+
+        ctx.fillStyle = color;
+        ctx.globalAlpha = isActive ? 1 : 0.75;
+        ctx.shadowColor = isActive ? color : "transparent";
+        ctx.shadowBlur = isActive ? 15 : 0;
+        const rx = x + 1, ry = Math.max(0, yTop), rw = keyW - 2, rh = Math.min(noteHeight, h - ry);
+        ctx.beginPath();
+        ctx.roundRect(rx, ry, rw, rh, 3);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+
+      // Hit line with glow
+      ctx.strokeStyle = "#06ffd2";
+      ctx.shadowColor = "#06ffd2";
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(0, (127 - i) * noteH);
-      ctx.lineTo(width, (127 - i) * noteH);
+      ctx.moveTo(0, h);
+      ctx.lineTo(w, h);
       ctx.stroke();
-    }
+      ctx.shadowBlur = 0;
 
-    // Notes
-    ctx.fillStyle = "#06ffd2";
-    for (const n of notes) {
-      const x = n.start * pxPerSec;
-      const y = (127 - n.midi) * noteH;
-      const w = Math.max(2, n.dur * pxPerSec);
-      ctx.globalAlpha = 0.8;
-      ctx.fillRect(x, y, w, noteH - 1);
-    }
-    ctx.globalAlpha = 1;
+      pianoAnimRef.current = requestAnimationFrame(animate);
+    };
+    if (pianoAnimRef.current) cancelAnimationFrame(pianoAnimRef.current);
+    pianoAnimRef.current = requestAnimationFrame(animate);
   };
 
   if (!fileUrl) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">No hay archivo disponible</p></div>;
@@ -438,7 +496,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       <div className="relative" style={{ height: "calc(100vh - 220px)", overflow: "auto" }} ref={containerRef}>
         <div ref={cursorRef} className="absolute z-20 pointer-events-none bg-ludilo-700 dark:bg-[#06ffd2] dark:shadow-[0_0_8px_#06ffd2]" style={{ display: "none", width: "2px" }} />
         <div className="dark:invert dark:hue-rotate-180" ref={atContainerRef} />
-        <canvas ref={pianoRollRef} className="block" style={{ display: "none" }} />
+        <canvas ref={pianoRollRef} className="block flex-1" style={{ display: "none" }} />
       </div>
     </div>
   );

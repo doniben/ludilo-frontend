@@ -115,7 +115,7 @@ export default function SongView({ isLibraryPreview }) {
 
             {/* View selector */}
             <div className="flex rounded-xl bg-gray-100 dark:bg-surface-dark-card p-1">
-              {(isGP ? ["tab", "score"] : VIEWS).map((v) => (
+              {(isGP ? ["tab", "score", "pianoroll"] : VIEWS).map((v) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
