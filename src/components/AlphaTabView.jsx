@@ -12,6 +12,8 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
   const ctxRef = useRef(null);
   const cursorRef = useRef(null);
   const animRef = useRef(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,6 +26,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
   const [speed, setSpeed] = useState(100);
   const [loopStart, setLoopStart] = useState(null);
   const [loopEnd, setLoopEnd] = useState(null);
+  const [activeNotes, setActiveNotes] = useState(new Set());
   const [sfLoading, setSfLoading] = useState(false);
   const [sfCached, setSfCached] = useState({ Sonivox: true, GeneralUser: true });
 
@@ -89,6 +92,8 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       }
       const sfBuffer = await sfResponse.arrayBuffer();
       await synth.soundBankManager.addSoundBank(sfBuffer, "main");
+      // Wait for soundfont to be fully parsed
+      await new Promise(r => setTimeout(r, 500));
 
       synthRef.current = synth;
       seqRef.current = new Sequencer(synth);
@@ -97,7 +102,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
     init().catch((e) => console.error("[Ludilo] SpessaSynth init error:", e));
 
     return () => {
-      seqRef.current?.stop();
+      seqRef.current?.pause();
       synthRef.current?.disconnect();
       ctxRef.current?.close();
     };
@@ -122,12 +127,13 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       const midiBytes = midiFile.toBinary();
 
       seqRef.current.loadNewSongList([{ binary: midiBytes.buffer }]);
+      await new Promise(r => setTimeout(r, 200));
       seqRef.current.play();
       setPlaying(true);
 
       // Start cursor animation
       const tickLookup = apiRef.current.renderer?.boundsLookup;
-      if (tickLookup && cursorRef.current && view !== "pianoroll") {
+      if (tickLookup && cursorRef.current && viewRef.current !== "pianoroll") {
         cursorRef.current.style.display = "block";
         if (containerRef.current) containerRef.current.scrollTop = 0;
 
@@ -316,7 +322,8 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       const pxPerSec = h / windowSec;
 
       // Background
-      ctx.fillStyle = "#0a0a0f";
+      const isDark = document.documentElement.classList.contains("dark");
+      ctx.fillStyle = isDark ? "#0a0a0f" : "#f5f5f4";
       ctx.fillRect(0, 0, w, h);
 
       // Piano keyboard at bottom
@@ -326,7 +333,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       const keyW = w / totalKeys;
 
       // Subtle vertical guides
-      ctx.strokeStyle = "rgba(6, 255, 210, 0.03)";
+      ctx.strokeStyle = isDark ? "rgba(6, 255, 210, 0.03)" : "rgba(0, 0, 0, 0.04)";
       for (let i = 0; i < totalKeys; i++) {
         ctx.beginPath();
         ctx.moveTo(i * keyW, 0);
@@ -364,8 +371,8 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       ctx.shadowBlur = 0;
 
       // Hit line with glow
-      ctx.strokeStyle = "#06ffd2";
-      ctx.shadowColor = "#06ffd2";
+      ctx.strokeStyle = isDark ? "#06ffd2" : "#0f766e";
+      ctx.shadowColor = isDark ? "#06ffd2" : "#0f766e";
       ctx.shadowBlur = 10;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -373,6 +380,14 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       ctx.lineTo(w, h);
       ctx.stroke();
       ctx.shadowBlur = 0;
+
+      // Update active notes for keyboard highlighting
+      const active = new Set();
+      for (const note of notes) {
+        const ns = note.start / rate;
+        if (currentTime >= ns && currentTime < ns + note.dur / rate) active.add(note.midi);
+      }
+      setActiveNotes(active);
 
       pianoAnimRef.current = requestAnimationFrame(animate);
     };
@@ -497,6 +512,45 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         <div ref={cursorRef} className="absolute z-20 pointer-events-none bg-ludilo-700 dark:bg-[#06ffd2] dark:shadow-[0_0_8px_#06ffd2]" style={{ display: "none", width: "2px" }} />
         <div className="dark:invert dark:hue-rotate-180" ref={atContainerRef} />
         <canvas ref={pianoRollRef} className="block flex-1" style={{ display: "none" }} />
+        {view === "pianoroll" && (
+          <div className="flex h-20 relative select-none">
+            {(() => {
+              const midiMin = 36, midiMax = 96;
+              const whiteKeys = [];
+              const blackKeys = [];
+              let whiteCount = 0;
+              for (let midi = midiMin; midi < midiMax; midi++) {
+                const isBlack = [1, 3, 6, 8, 10].includes(midi % 12);
+                if (!isBlack) {
+                  whiteKeys.push({ midi, index: whiteCount });
+                  whiteCount++;
+                }
+              }
+              const whiteW = 100 / whiteCount; // percentage width per white key
+              // Position black keys between white keys
+              let wIdx = 0;
+              for (let midi = midiMin; midi < midiMax; midi++) {
+                const isBlack = [1, 3, 6, 8, 10].includes(midi % 12);
+                if (!isBlack) { wIdx++; continue; }
+                // Black key sits between previous white key and next
+                const leftPos = (wIdx - 0.35) * whiteW;
+                blackKeys.push({ midi, left: leftPos });
+              }
+              return (
+                <>
+                  {whiteKeys.map(({ midi }) => {
+                    const active = activeNotes.has(midi);
+                    return <div key={midi} className={`flex-1 border-r border-gray-300 rounded-b-sm transition-colors duration-75 ${active ? "bg-[#06ffd2] shadow-[0_0_12px_#06ffd2]" : "bg-white"}`} />;
+                  })}
+                  {blackKeys.map(({ midi, left }) => {
+                    const active = activeNotes.has(midi);
+                    return <div key={midi} className={`absolute top-0 rounded-b-md shadow-md transition-colors duration-75 ${active ? "bg-[#06ffd2] shadow-[0_0_12px_#06ffd2]" : "bg-gray-900"}`} style={{ left: `${left}%`, width: `${whiteW * 0.6}%`, height: "60%" }} />;
+                  })}
+                </>
+              );
+            })()}
+          </div>
+        )}
       </div>
     </div>
   );
