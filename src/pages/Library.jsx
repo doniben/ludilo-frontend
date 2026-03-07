@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MagnifyingGlassIcon, MusicalNoteIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import MidiPreview from "../components/MidiPreview";
+import QualityBadge from "../components/QualityBadge";
 
 const API = import.meta.env.VITE_API_URL;
 const SOURCES = ["all", "guitarpro", "lakh", "la-midi"];
@@ -130,9 +131,7 @@ export default function Library() {
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{item.artist}</p>
                     </div>
                     <MidiPreview blobPath={item.blobPath} title={item.title} />
-                    <span className="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 uppercase">
-                      {item.format}
-                    </span>
+                    <QualityBadge source={item.source} />
                   </motion.div>
                 ))}
               </motion.div>
