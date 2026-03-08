@@ -20,6 +20,7 @@ export default function SongView({ isLibraryPreview }) {
   const [view, setView] = useState("tab");
   const [fileUrl, setFileUrl] = useState(null);
   const [isGP, setIsGP] = useState(false);
+  const [midiBlobPath, setMidiBlobPath] = useState(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
   const token = localStorage.getItem("ludilo-token");
@@ -48,6 +49,9 @@ export default function SongView({ isLibraryPreview }) {
         if (blobPath) {
           const gpExts = [".gp3", ".gp4", ".gp5", ".gpx", ".gp"];
           setIsGP(gpExts.some((ext) => blobPath.toLowerCase().endsWith(ext)));
+          if (!gpExts.some((ext) => blobPath.toLowerCase().endsWith(ext))) {
+            setMidiBlobPath(blobPath);
+          }
           const previewRes = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(blobPath)}`);
           const previewData = await previewRes.json();
           setFileUrl(previewData.url);
@@ -138,7 +142,7 @@ export default function SongView({ isLibraryPreview }) {
           ) : (
             <>
               {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} />}
-              {view === "score" && <ScoreView musicXmlUrl={null} />}
+              {view === "score" && <ScoreView blobPath={midiBlobPath} />}
               {view === "tab" && <TabView midiUrl={fileUrl} />}
             </>
           )}
