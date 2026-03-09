@@ -7,11 +7,16 @@ import MidiPreview from "../components/MidiPreview";
 import QualityBadge from "../components/QualityBadge";
 
 const API = import.meta.env.VITE_API_URL;
-const SOURCES = ["all", "guitarpro", "lakh", "la-midi"];
+const FILTERS = [
+  { value: "all", label: "library.filter_all" },
+  { value: "guitarpro", label: "library.filter_tabs" },
+  { value: "midi", label: "library.filter_midi" },
+  { value: "ludilo", label: "library.filter_ludilo" },
+];
 
 export default function Library() {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [results, setResults] = useState([]);
@@ -25,6 +30,7 @@ export default function Library() {
   const search = useCallback(async (q, p = 1, src = source) => {
     if (!q || q.length < 2) return;
     setLoading(true);
+    setSearchParams({ q }, { replace: true });
     try {
       const params = new URLSearchParams({ q, page: p, pageSize: 20 });
       if (src !== "all") params.set("source", src);
@@ -83,8 +89,8 @@ export default function Library() {
                 onChange={(e) => setSource(e.target.value)}
                 className="pl-9 pr-4 py-3 rounded-xl bg-white dark:bg-surface-dark-card border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-ludilo-500/50 dark:focus:ring-neon-cyan/30 appearance-none cursor-pointer"
               >
-                {SOURCES.map((s) => (
-                  <option key={s} value={s}>{t(`library.source_${s}`)}</option>
+                {FILTERS.map((f) => (
+                  <option key={f.value} value={f.value}>{t(f.label)}</option>
                 ))}
               </select>
             </div>

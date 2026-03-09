@@ -11,6 +11,7 @@ export default function ScoreView({ musicXmlUrl, blobPath }) {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    console.log("[Ludilo] ScoreView mounted, blobPath:", blobPath, "musicXmlUrl:", musicXmlUrl);
 
     const loadScore = async () => {
       setLoading(true);
@@ -21,8 +22,10 @@ export default function ScoreView({ musicXmlUrl, blobPath }) {
 
         // If no MusicXML URL but we have a MIDI blobPath, request conversion
         if (!url && blobPath) {
+          console.log("[Ludilo] ScoreView: requesting MusicXML for", blobPath);
           const res = await fetch(`${API}/library/musicxml?blobPath=${encodeURIComponent(blobPath)}`);
           const data = await res.json();
+          console.log("[Ludilo] ScoreView: response", data);
           if (data.error) throw new Error(data.error);
           url = data.url;
         }
@@ -33,6 +36,7 @@ export default function ScoreView({ musicXmlUrl, blobPath }) {
           return;
         }
 
+        console.log("[Ludilo] ScoreView: loading OSMD with", url);
         const osmd = new OpenSheetMusicDisplay(containerRef.current, {
           autoResize: true,
           drawTitle: false,
@@ -40,9 +44,11 @@ export default function ScoreView({ musicXmlUrl, blobPath }) {
         });
         osmdRef.current = osmd;
         await osmd.load(url);
+        console.log("[Ludilo] ScoreView: rendering");
         osmd.render();
+        console.log("[Ludilo] ScoreView: done");
       } catch (e) {
-        console.error("[Ludilo] OSMD error:", e);
+        console.error("[Ludilo] ScoreView error:", e);
         setError(e.message || "score_load_error");
       } finally {
         setLoading(false);

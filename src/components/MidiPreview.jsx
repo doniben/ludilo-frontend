@@ -1,101 +1,117 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PlayIcon, StopIcon } from "@heroicons/react/24/solid";
-import * as Tone from "tone";
-import { Midi } from "@tonejs/midi";
 
 const API = import.meta.env.VITE_API_URL;
+const SF_URL = "https://stludilo.blob.core.windows.net/library/soundfonts/GeneralUser.sf3";
+
+// Shared synth singleton
+let sharedSynth = null;
+let sharedSeq = null;
+let sharedCtx = null;
+let synthInitPromise = null;
+
+async function getSharedSynth() {
+  if (sharedSynth) return { synth: sharedSynth, seq: sharedSeq, ctx: sharedCtx };
+  if (synthInitPromise) return synthInitPromise;
+
+  synthInitPromise = (async () => {
+    const { Sequencer, WorkletSynthesizer } = await import("spessasynth_lib");
+    const ctx = new AudioContext();
+    await ctx.audioWorklet.addModule("/spessasynth_processor.min.js");
+    const synth = new WorkletSynthesizer(ctx);
+    const gain = ctx.createGain();
+    gain.gain.value = 2.0;
+    synth.connect(gain);
+    gain.connect(ctx.destination);
+
+    const cache = await caches.open("ludilo-soundfonts");
+    let sfRes = await cache.match(SF_URL);
+    if (!sfRes) { sfRes = await fetch(SF_URL); cache.put(SF_URL, sfRes.clone()); }
+    const sfBuf = await sfRes.arrayBuffer();
+    await synth.soundBankManager.addSoundBank(sfBuf, "main");
+    await new Promise(r => setTimeout(r, 300));
+
+    const seq = new Sequencer(synth);
+    sharedSynth = synth;
+    sharedSeq = seq;
+    sharedCtx = ctx;
+    return { synth, seq, ctx };
+  })();
+  return synthInitPromise;
+}
 
 export default function MidiPreview({ blobPath, title }) {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [midiPath, setMidiPath] = useState(null);
-  const [hidden, setHidden] = useState(false);
-  const synthsRef = useRef([]);
+  const [ready, setReady] = useState(true); // always show for GP and MIDI
+  const timerRef = useRef(null);
+
+  const isGP = /\.(gp[345x]?|gp)$/i.test(blobPath);
+  const isMidi = /\.(mid|midi)$/i.test(blobPath);
+
+  // For GP files, search for MIDI equivalent only if not a direct MIDI
+  const [midiPath, setMidiPath] = useState(isMidi ? blobPath : null);
 
   useEffect(() => {
-    // If it's already a .mid file, use it directly
-    if (blobPath.endsWith(".mid") || blobPath.endsWith(".midi")) {
-      setMidiPath(blobPath);
-    } else {
-      // Search for a MIDI version in lakh, then la-midi
-      const searchTitle = title.replace(/\s+(gp\d|sm|tab|guitar|solo|acoustic|remix)$/i, "").trim();
-      fetch(`${API}/library/search?q=${encodeURIComponent(searchTitle)}&pageSize=1&source=lakh`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.results && data.results.length > 0) {
-            setMidiPath(data.results[0].blobPath);
-          } else {
-            // Try la-midi
-            return fetch(`${API}/library/search?q=${encodeURIComponent(searchTitle)}&pageSize=1&source=la-midi`)
-              .then((r) => r.json())
-              .then((data2) => {
-                if (data2.results && data2.results.length > 0) {
-                  setMidiPath(data2.results[0].blobPath);
-                } else {
-                  setHidden(true);
-                }
-              });
-          }
-        })
-        .catch(() => setHidden(true));
-    }
-  }, [blobPath, title]);
+    if (isMidi) { setMidiPath(blobPath); return; }
+    if (!isGP) { setReady(false); return; }
+    // GP files: we'll parse them directly with alphaTab
+    setMidiPath(null);
+  }, [blobPath]);
 
   const stop = useCallback(() => {
-    Tone.getTransport().stop();
-    Tone.getTransport().cancel();
-    synthsRef.current.forEach((s) => s.dispose());
-    synthsRef.current = [];
+    if (sharedSeq) sharedSeq.pause();
+    if (timerRef.current) clearTimeout(timerRef.current);
     setPlaying(false);
   }, []);
 
-  const play = useCallback(async () => {
+  const play = useCallback(async (e) => {
+    e.stopPropagation();
     if (playing) { stop(); return; }
-    if (!midiPath) return;
     setLoading(true);
 
     try {
-      await Tone.start();
+      const { synth, seq, ctx } = await getSharedSynth();
+      await ctx.resume();
 
-      // Get temporary URL for the MIDI file
-      const res = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(midiPath)}`);
-      const { url } = await res.json();
+      // Get the file URL
+      const previewRes = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(blobPath)}`);
+      const { url } = await previewRes.json();
+      const fileRes = await fetch(url);
+      const arrayBuffer = await fileRes.arrayBuffer();
 
-      // Download and parse MIDI
-      const midiRes = await fetch(url);
-      const arrayBuffer = await midiRes.arrayBuffer();
-      const midi = new Midi(arrayBuffer);
+      let midiBytes;
 
-      // Create synths for each track (max 4 to avoid overload)
-      const tracks = midi.tracks.filter((t) => t.notes.length > 0).slice(0, 4);
-      const synths = tracks.map(() => new Tone.PolySynth(Tone.Synth, { maxPolyphony: 8 }).toDestination());
-      synthsRef.current = synths;
+      if (isGP) {
+        // Parse GP with alphaTab and generate MIDI
+        const alphaTab = await import("@coderline/alphatab");
+        const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(new Uint8Array(arrayBuffer));
+        const midiFile = new alphaTab.midi.MidiFile();
+        const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midiFile);
+        handler.addNoteBend = () => {};
+        const generator = new alphaTab.midi.MidiFileGenerator(score, null, handler);
+        generator.generate();
+        midiBytes = midiFile.toBinary();
+      } else {
+        // Already MIDI
+        midiBytes = new Uint8Array(arrayBuffer);
+      }
 
-      // Schedule notes
-      const transport = Tone.getTransport();
-      transport.cancel();
-      transport.bpm.value = midi.header.tempos[0]?.bpm || 120;
-
-      tracks.forEach((track, i) => {
-        track.notes.forEach((note) => {
-          transport.schedule((time) => {
-            synths[i]?.triggerAttackRelease(note.name, note.duration, time, note.velocity);
-          }, note.time);
-        });
-      });
-
-      // Auto-stop after 15s preview
-      transport.schedule(() => stop(), "+15");
-      transport.start();
+      seq.loadNewSongList([{ binary: midiBytes.buffer }]);
+      await new Promise(r => setTimeout(r, 150));
+      seq.play();
       setPlaying(true);
-    } catch (e) {
-      console.error("[Ludilo] MIDI preview error:", e);
+
+      // Auto-stop after 10s
+      timerRef.current = setTimeout(() => stop(), 10000);
+    } catch (err) {
+      console.error("[Ludilo] Preview error:", err);
     } finally {
       setLoading(false);
     }
-  }, [midiPath, playing, stop]);
+  }, [blobPath, playing, stop, isGP]);
 
-  if (hidden || !midiPath) return null;
+  if (!isGP && !isMidi) return null;
 
   return (
     <button
@@ -110,7 +126,7 @@ export default function MidiPreview({ blobPath, title }) {
       ) : (
         <PlayIcon className="w-3.5 h-3.5" />
       )}
-      {playing ? "Stop" : "Preview"}
+      Preview
     </button>
   );
 }

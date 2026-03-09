@@ -271,6 +271,8 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         if (atContainerRef.current) atContainerRef.current.style.display = "";
         if (pianoRollRef.current) pianoRollRef.current.style.display = "none";
         if (pianoAnimRef.current) cancelAnimationFrame(pianoAnimRef.current);
+        // Restore cursor if playing
+        if (cursorRef.current && playing) cursorRef.current.style.display = "block";
         apiRef.current.settings.display.staveProfile = view === "score" ? 1 : 4;
         apiRef.current.updateSettings();
         apiRef.current.render();

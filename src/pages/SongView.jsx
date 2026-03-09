@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { MusicalNoteIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { MusicalNoteIcon, PlusIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import AlphaTabView from "../components/AlphaTabView";
 import ScoreView from "../components/ScoreView";
 import PianoRollView from "../components/PianoRollView";
@@ -94,6 +94,9 @@ export default function SongView({ isLibraryPreview }) {
       <div className="max-w-6xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+              <ArrowLeftIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            </button>
             <MusicalNoteIcon className="w-6 h-6 text-accent" />
             <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">
               {song?.title || "Song"}
