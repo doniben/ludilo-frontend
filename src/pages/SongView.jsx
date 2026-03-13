@@ -21,6 +21,7 @@ export default function SongView({ isLibraryPreview }) {
   const [fileUrl, setFileUrl] = useState(null);
   const [isGP, setIsGP] = useState(false);
   const [midiBlobPath, setMidiBlobPath] = useState(null);
+  const [musicXmlUrl, setMusicXmlUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
   const token = localStorage.getItem("ludilo-token");
@@ -145,7 +146,7 @@ export default function SongView({ isLibraryPreview }) {
           ) : (
             <>
               {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} />}
-              {view === "score" && <ScoreView blobPath={midiBlobPath} />}
+              {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} />}
               {view === "tab" && <TabView midiUrl={fileUrl} />}
             </>
           )}

@@ -3,7 +3,7 @@ import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 
 const API = import.meta.env.VITE_API_URL;
 
-export default function ScoreView({ musicXmlUrl, blobPath }) {
+export default function ScoreView({ musicXmlUrl, blobPath, onGenerated }) {
   const containerRef = useRef(null);
   const osmdRef = useRef(null);
   const [error, setError] = useState(null);
@@ -28,6 +28,7 @@ export default function ScoreView({ musicXmlUrl, blobPath }) {
           console.log("[Ludilo] ScoreView: response", data);
           if (data.error) throw new Error(data.error);
           url = data.url;
+          if (onGenerated) onGenerated(url);
         }
 
         if (!url) {
@@ -62,15 +63,6 @@ export default function ScoreView({ musicXmlUrl, blobPath }) {
     };
   }, [musicXmlUrl, blobPath]);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-2">
-        <div className="w-6 h-6 border-2 border-ludilo-500 dark:border-neon-cyan border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-gray-400">Generando partitura...</p>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-400 dark:text-gray-500">
@@ -80,5 +72,15 @@ export default function ScoreView({ musicXmlUrl, blobPath }) {
     );
   }
 
-  return <div ref={containerRef} className="w-full overflow-x-auto" />;
+  return (
+    <div className="relative">
+      {loading && (
+        <div className="flex flex-col items-center justify-center h-64 gap-2">
+          <div className="w-6 h-6 border-2 border-ludilo-500 dark:border-neon-cyan border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-gray-400">Generando partitura...</p>
+        </div>
+      )}
+      <div ref={containerRef} className="w-full overflow-x-auto dark:invert dark:hue-rotate-180" />
+    </div>
+  );
 }
