@@ -1,114 +1,156 @@
 import { useEffect, useRef, useState } from "react";
 import { Midi } from "@tonejs/midi";
 
-const NOTE_HEIGHT = 4;
-const PX_PER_SECOND = 80;
+const MIDI_MIN = 36;
+const MIDI_MAX = 96;
 
-export default function PianoRollView({ midiUrl }) {
+export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks = [] }) {
   const canvasRef = useRef(null);
+  const animRef = useRef(null);
+  const notesRef = useRef([]);
+  const [activeNotes, setActiveNotes] = useState(new Set());
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!midiUrl || !canvasRef.current) return;
 
     const load = async () => {
-      setLoading(true);
-      setError(null);
       try {
-        // Check if it's a MIDI file
-        if (!midiUrl.includes(".mid")) {
-          setError("Este archivo no es MIDI. Se necesita convertir para visualizar.");
-          setLoading(false);
-          return;
-        }
         const res = await fetch(midiUrl);
         if (!res.ok) throw new Error("No se pudo descargar");
-        const arrayBuffer = await res.arrayBuffer();
-        const midi = new Midi(arrayBuffer);
+        const buf = await res.arrayBuffer();
+        const midi = new Midi(buf);
 
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-
-        // Calculate dimensions
-        const duration = midi.duration;
-        const width = Math.max(canvas.parentElement.clientWidth, duration * PX_PER_SECOND);
-        const height = 128 * NOTE_HEIGHT; // 128 MIDI notes
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Dark background
-        ctx.fillStyle = "#0a0a0f";
-        ctx.fillRect(0, 0, width, height);
-
-        // Draw grid lines (octaves)
-        ctx.strokeStyle = "rgba(255,255,255,0.05)";
-        for (let i = 0; i < 128; i += 12) {
-          ctx.beginPath();
-          ctx.moveTo(0, (127 - i) * NOTE_HEIGHT);
-          ctx.lineTo(width, (127 - i) * NOTE_HEIGHT);
-          ctx.stroke();
+        const notes = [];
+        for (const track of midi.tracks) {
+          const ch = track.channel;
+          for (const note of track.notes) {
+            notes.push({ midi: note.midi, start: note.time, dur: note.duration, channel: ch });
+          }
         }
-
-        // Colors per track
-        const colors = ["#06ffd2", "#ff06c4", "#8b5cf6", "#fbbf24", "#14b8a6", "#ef4444"];
-
-        // Draw notes
-        midi.tracks.forEach((track, trackIdx) => {
-          const color = colors[trackIdx % colors.length];
-          ctx.fillStyle = color;
-
-          track.notes.forEach((note) => {
-            const x = note.time * PX_PER_SECOND;
-            const y = (127 - note.midi) * NOTE_HEIGHT;
-            const w = Math.max(2, note.duration * PX_PER_SECOND);
-            const h = NOTE_HEIGHT - 1;
-
-            ctx.globalAlpha = 0.6 + note.velocity * 0.4;
-            ctx.fillRect(x, y, w, h);
-          });
-        });
-
-        ctx.globalAlpha = 1;
+        notesRef.current = notes;
+        startAnimation();
       } catch (e) {
-        console.error("[Ludilo] Piano roll error:", e);
-        setError("No se pudo cargar el MIDI");
-      } finally {
-        setLoading(false);
+        setError(e.message);
       }
     };
 
+    const startAnimation = () => {
+      const animate = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        const w = canvas.parentElement.clientWidth;
+        const h = canvas.parentElement.clientHeight - 80; // leave room for keyboard
+        canvas.width = w;
+        canvas.height = h;
+
+        const currentTime = seqRef?.current?.currentTime || 0;
+        const rate = seqRef?.current?.playbackRate || 1;
+        const windowSec = 4;
+        const pxPerSec = h / windowSec;
+        const totalKeys = MIDI_MAX - MIDI_MIN;
+        const keyW = w / totalKeys;
+
+        const isDark = document.documentElement.classList.contains("dark");
+        ctx.fillStyle = isDark ? "#0a0a0f" : "#f5f5f4";
+        ctx.fillRect(0, 0, w, h);
+
+        // Vertical guides
+        ctx.strokeStyle = isDark ? "rgba(6, 255, 210, 0.03)" : "rgba(0, 0, 0, 0.04)";
+        for (let i = 0; i < totalKeys; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * keyW, 0);
+          ctx.lineTo(i * keyW, h);
+          ctx.stroke();
+        }
+
+        // Falling notes
+        const colors = ["#06ffd2", "#ff06c4", "#8b5cf6", "#fbbf24"];
+        const active = new Set();
+        const filterCh = activePart >= 0 && tracks[activePart] ? tracks[activePart].channel : -1;
+        for (const note of notesRef.current) {
+          if (filterCh >= 0 && note.channel !== filterCh) continue;
+          if (note.midi < MIDI_MIN || note.midi >= MIDI_MAX) continue;
+          const noteStart = note.start / rate;
+          const noteDur = note.dur / rate;
+          const relStart = noteStart - currentTime;
+          const relEnd = relStart + noteDur;
+          if (relEnd < 0 || relStart > windowSec) continue;
+
+          const x = (note.midi - MIDI_MIN) * keyW;
+          const yBottom = h - (relStart * pxPerSec);
+          const yTop = h - (relEnd * pxPerSec);
+          const noteHeight = yBottom - yTop;
+          const isActive = relStart <= 0 && relEnd > 0;
+          const color = colors[note.midi % 4];
+
+          if (isActive) active.add(note.midi);
+
+          ctx.fillStyle = color;
+          ctx.globalAlpha = isActive ? 1 : 0.75;
+          ctx.shadowColor = isActive ? color : "transparent";
+          ctx.shadowBlur = isActive ? 15 : 0;
+          ctx.beginPath();
+          ctx.roundRect(x + 1, Math.max(0, yTop), keyW - 2, Math.min(noteHeight, h - Math.max(0, yTop)), 3);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+
+        // Hit line
+        ctx.strokeStyle = isDark ? "#06ffd2" : "#0f766e";
+        ctx.shadowColor = isDark ? "#06ffd2" : "#0f766e";
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        ctx.lineTo(w, h);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        setActiveNotes(active);
+        animRef.current = requestAnimationFrame(animate);
+      };
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      animRef.current = requestAnimationFrame(animate);
+    };
+
     load();
-  }, [midiUrl]);
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  }, [midiUrl, seqRef]);
 
-  if (!midiUrl) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-400 dark:text-gray-500">
-        <p className="text-sm">No hay MIDI disponible para esta canción</p>
-      </div>
-    );
+  if (!midiUrl) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">No hay MIDI disponible</p></div>;
+  if (error) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">{error}</p></div>;
+
+  const whiteKeys = [];
+  const blackKeys = [];
+  let whiteCount = 0;
+  for (let midi = MIDI_MIN; midi < MIDI_MAX; midi++) {
+    if (![1, 3, 6, 8, 10].includes(midi % 12)) { whiteKeys.push({ midi, index: whiteCount }); whiteCount++; }
   }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-ludilo-500 dark:border-neon-cyan border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-400">
-        <p className="text-sm">{error}</p>
-      </div>
-    );
+  const whiteW = 100 / whiteCount;
+  let wIdx = 0;
+  for (let midi = MIDI_MIN; midi < MIDI_MAX; midi++) {
+    if (![1, 3, 6, 8, 10].includes(midi % 12)) { wIdx++; continue; }
+    blackKeys.push({ midi, left: (wIdx - 0.35) * whiteW });
   }
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg">
-      <canvas ref={canvasRef} className="block" />
+    <div className="w-full" style={{ height: "calc(100vh - 280px)" }}>
+      <div className="relative w-full h-full flex flex-col">
+        <canvas ref={canvasRef} className="block flex-1" />
+        <div className="flex h-20 relative select-none">
+          {whiteKeys.map(({ midi }) => {
+            const active = activeNotes.has(midi);
+            return <div key={midi} className={`flex-1 border-r border-gray-300 rounded-b-sm transition-colors duration-75 ${active ? "bg-[#06ffd2] shadow-[0_0_12px_#06ffd2]" : "bg-white"}`} />;
+          })}
+          {blackKeys.map(({ midi, left }) => {
+            const active = activeNotes.has(midi);
+            return <div key={midi} className={`absolute top-0 rounded-b-md shadow-md transition-colors duration-75 ${active ? "bg-[#06ffd2] shadow-[0_0_12px_#06ffd2]" : "bg-gray-900"}`} style={{ left: `${left}%`, width: `${whiteW * 0.6}%`, height: "60%" }} />;
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -209,6 +209,18 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
     setPlaying(false);
   }, []);
 
+  // Spacebar to play/pause
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.code === "Space" && e.target.tagName !== "INPUT" && e.target.tagName !== "SELECT") {
+        e.preventDefault();
+        startPlayback();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [startPlayback]);
+
   useEffect(() => {
     if (!containerRef.current || !fileUrl) return;
 

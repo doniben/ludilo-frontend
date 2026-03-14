@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
@@ -23,6 +23,9 @@ export default function SongView({ isLibraryPreview }) {
   const [isGP, setIsGP] = useState(false);
   const [midiBlobPath, setMidiBlobPath] = useState(null);
   const [musicXmlUrl, setMusicXmlUrl] = useState(null);
+  const [midiTracks, setMidiTracks] = useState([]);
+  const [activePart, setActivePart] = useState(-1); // -1 = all
+  const midiSeqRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
   const token = localStorage.getItem("ludilo-token");
@@ -146,9 +149,9 @@ export default function SongView({ isLibraryPreview }) {
             <AlphaTabView fileUrl={fileUrl} view={view} />
           ) : (
             <>
-              <MidiPlayer midiUrl={fileUrl} />
-              {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} />}
-              {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} />}
+              <MidiPlayer midiUrl={fileUrl} seqRef={midiSeqRef} onTracksLoaded={setMidiTracks} activePart={activePart} onPartChange={setActivePart} />
+              {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} />}
+              {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} seqRef={midiSeqRef} activePart={activePart} />}
               {view === "tab" && <TabView midiUrl={fileUrl} />}
             </>
           )}
