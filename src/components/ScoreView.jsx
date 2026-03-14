@@ -31,7 +31,7 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated }) {
           if (onGenerated) onGenerated(url);
         }
 
-        if (!url) {
+        if (!url || !url.startsWith("http")) {
           setError("no_musicxml");
           setLoading(false);
           return;

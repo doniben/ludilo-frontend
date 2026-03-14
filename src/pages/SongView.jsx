@@ -7,6 +7,7 @@ import AlphaTabView from "../components/AlphaTabView";
 import ScoreView from "../components/ScoreView";
 import PianoRollView from "../components/PianoRollView";
 import TabView from "../components/TabView";
+import MidiPlayer from "../components/MidiPlayer";
 
 const API = import.meta.env.VITE_API_URL;
 const VIEWS = ["pianoroll", "score", "tab"];
@@ -145,6 +146,7 @@ export default function SongView({ isLibraryPreview }) {
             <AlphaTabView fileUrl={fileUrl} view={view} />
           ) : (
             <>
+              <MidiPlayer midiUrl={fileUrl} />
               {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} />}
               {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} />}
               {view === "tab" && <TabView midiUrl={fileUrl} />}
