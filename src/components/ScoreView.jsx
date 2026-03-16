@@ -87,6 +87,17 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
       osmd.render();
       osmd.cursor.reset();
       osmd.cursor.show();
+      // Advance cursor to current playback position
+      const seq = seqRef?.current;
+      if (seq && osmd.cursor) {
+        const time = seq.currentTime;
+        const duration = seq.duration || 1;
+        const totalBeats = osmd.sheet?.sourceMeasures?.length * 4 || 100;
+        const targetBeat = Math.floor((time / duration) * totalBeats);
+        for (let i = 0; i < targetBeat && !osmd.cursor.iterator?.endReached; i++) {
+          osmd.cursor.next();
+        }
+      }
       const el = osmd.cursor.cursorElement;
       if (el) {
         el.style.width = "3px";
@@ -112,30 +123,25 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
     const animate = () => {
       const seq = seqRef?.current;
       if (seq && !seq.paused && osmd.cursor) {
-        const time = seq.currentTime;
-        const duration = seq.duration || 1;
-        const totalBeats = osmd.sheet?.sourceMeasures?.length * 4 || 100;
-        const currentBeat = Math.floor((time / duration) * totalBeats);
-        if (currentBeat > lastBeatIndex) {
-          const steps = currentBeat - lastBeatIndex;
-          for (let i = 0; i < steps && !osmd.cursor.iterator?.endReached; i++) {
-            osmd.cursor.next();
-            // Re-apply style after each move (OSMD resets it)
-            const el = osmd.cursor.cursorElement;
-            if (el) {
-              el.style.width = "3px";
-              el.style.minHeight = "80px";
-              el.style.background = "#06ffd2";
-              el.style.boxShadow = "0 0 8px #06ffd2";
-              el.style.opacity = "1";
-              el.style.filter = "none";
+        try {
+          const time = seq.currentTime;
+          const duration = seq.duration || 1;
+          const totalBeats = osmd.sheet?.sourceMeasures?.length * 4 || 100;
+          const currentBeat = Math.floor((time / duration) * totalBeats);
+          if (currentBeat > lastBeatIndex) {
+            const steps = currentBeat - lastBeatIndex;
+            for (let i = 0; i < steps && !osmd.cursor.iterator?.endReached; i++) {
+              osmd.cursor.next();
             }
+            lastBeatIndex = currentBeat;
+          } else if (currentBeat < lastBeatIndex) {
+            osmd.cursor.reset();
+            lastBeatIndex = -1;
           }
-          lastBeatIndex = currentBeat;
-        } else if (currentBeat < lastBeatIndex) {
-          osmd.cursor.reset();
-          lastBeatIndex = -1;
-        }
+        } catch (e) { /* cursor position error after part change */ }
+      } else if (seq && seq.paused && seq.currentTime === 0 && lastBeatIndex > 0) {
+        try { osmd.cursor.reset(); } catch (e) {}
+        lastBeatIndex = -1;
       }
       cursorAnimRef.current = requestAnimationFrame(animate);
     };
@@ -168,7 +174,7 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
           <p className="text-xs text-gray-400">{resolvedUrl ? "Cargando..." : "Generando partitura..."}</p>
         </div>
       )}
-      <div ref={containerRef} className="w-full overflow-x-auto dark:bg-gray-900 dark:[&_svg]:invert dark:[&_svg]:hue-rotate-180" />
+      <div ref={containerRef} className="w-full overflow-auto dark:bg-gray-900 dark:[&_svg]:invert dark:[&_svg]:hue-rotate-180" style={{ height: "calc(100vh - 280px)" }} />
     </div>
   );
 }

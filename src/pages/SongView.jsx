@@ -97,7 +97,7 @@ export default function SongView({ isLibraryPreview }) {
   return (
     <main className="min-h-screen pt-20 px-4 pb-12">
       <div className="max-w-6xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6 sticky top-0 z-10 bg-gray-50 dark:bg-surface-dark py-3 -mx-6 px-6">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
               <ArrowLeftIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />

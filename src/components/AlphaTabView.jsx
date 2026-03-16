@@ -113,6 +113,19 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
     if (playing) { seqRef.current?.pause(); setPlaying(false); return; }
 
     await ctxRef.current.resume();
+
+    // If sequencer exists and has been paused, just resume
+    if (seqRef.current && seqRef.current.currentTime > 0) {
+      seqRef.current.play();
+      setPlaying(true);
+      // Restart cursor animation
+      const tickLookup = apiRef.current.renderer?.boundsLookup;
+      if (tickLookup && cursorRef.current && viewRef.current !== "pianoroll") {
+        cursorRef.current.style.display = "block";
+      }
+      return;
+    }
+
     // Generate MIDI from alphaTab score
     const alphaTab = await import("@coderline/alphatab");
     const score = apiRef.current.score;
@@ -140,7 +153,6 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         // Build cumulative time for each bar using actual time signatures
         const score = apiRef.current.score;
         const tempo = score.tempo;
-        const allBars = tickLookup.staffSystems.flatMap(sg => sg.bars);
         const barTimesRef = [];
         let cumTime = 0;
         for (let i = 0; i < score.masterBars.length; i++) {
@@ -154,7 +166,17 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
         barTimesRef.push(cumTime);
 
         const animate = () => {
-          if (!seqRef.current || seqRef.current.paused) return;
+          if (!seqRef.current || seqRef.current.paused) {
+            animRef.current = requestAnimationFrame(animate);
+            return;
+          }
+          if (viewRef.current === "pianoroll" || !cursorRef.current) {
+            animRef.current = requestAnimationFrame(animate);
+            return;
+          }
+          const currentLookup = apiRef.current?.renderer?.boundsLookup;
+          if (!currentLookup) { animRef.current = requestAnimationFrame(animate); return; }
+          const allBars = currentLookup.staffSystems.flatMap(sg => sg.bars);
           const time = seqRef.current.currentTime + 0.25;
 
           // Find which bar we're in (barTimes are at 100% speed, scale by playback rate)
@@ -267,7 +289,6 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
     if (apiRef.current?.score) {
       apiRef.current.renderTracks([apiRef.current.score.tracks[activeTrack]]);
     }
-    if (playing) stopPlayback();
   }, [activeTrack]);
 
   useEffect(() => {
@@ -326,7 +347,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
     const animate = () => {
       const ctx = canvas.getContext("2d");
       const w = canvas.parentElement.clientWidth;
-      const h = canvas.parentElement.clientHeight;
+      const h = canvas.parentElement.clientHeight - 80;
       canvas.width = w;
       canvas.height = h;
 
