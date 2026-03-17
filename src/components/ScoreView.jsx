@@ -5,6 +5,7 @@ const API = import.meta.env.VITE_API_URL;
 
 export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, activePart = -1 }) {
   const containerRef = useRef(null);
+  const osmdContainerRef = useRef(null);
   const osmdRef = useRef(null);
   const cursorAnimRef = useRef(null);
   const [error, setError] = useState(null);
@@ -37,10 +38,10 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
 
   // Step 2: Render OSMD
   useEffect(() => {
-    if (!resolvedUrl || !containerRef.current) return;
+    if (!resolvedUrl || !osmdContainerRef.current) return;
 
-    containerRef.current.innerHTML = "";
-    const osmd = new OpenSheetMusicDisplay(containerRef.current, {
+    osmdContainerRef.current.innerHTML = "";
+    const osmd = new OpenSheetMusicDisplay(osmdContainerRef.current, {
       autoResize: true,
       drawTitle: false,
       drawComposer: false,
@@ -51,19 +52,8 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
 
     osmd.load(resolvedUrl).then(() => {
       osmd.render();
-      osmd.cursor.show();
-
-      // Force cursor to be tall and visible
-      const el = osmd.cursor.cursorElement;
-      if (el) {
-        el.style.width = "3px";
-        el.style.minHeight = "80px";
-        el.style.zIndex = "50";
-        el.style.filter = "none";
-        el.style.background = "#06ffd2";
-        el.style.boxShadow = "0 0 8px #06ffd2";
-        el.style.opacity = "1";
-      }
+      // Hide native cursor - we use our own
+      try { osmd.cursor.show(); osmd.cursor.cursorElement.style.display = "none"; } catch (e) {}
       setLoading(false);
     }).catch(e => {
       setError(e.message);
@@ -80,68 +70,107 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
     const instruments = osmd.sheet?.Instruments;
     if (!instruments || instruments.length <= 1) return;
 
+    // Clamp activePart to available instruments
+    const partIdx = activePart >= 0 && activePart < instruments.length ? activePart : -1;
+
     try {
       instruments.forEach((inst, i) => {
-        inst.Visible = activePart === -1 || i === activePart;
+        inst.Visible = partIdx === -1 || i === partIdx;
       });
       osmd.render();
-      osmd.cursor.reset();
-      osmd.cursor.show();
-      // Advance cursor to current playback position
-      const seq = seqRef?.current;
-      if (seq && osmd.cursor) {
-        const time = seq.currentTime;
-        const duration = seq.duration || 1;
-        const totalBeats = osmd.sheet?.sourceMeasures?.length * 4 || 100;
-        const targetBeat = Math.floor((time / duration) * totalBeats);
-        for (let i = 0; i < targetBeat && !osmd.cursor.iterator?.endReached; i++) {
-          osmd.cursor.next();
-        }
-      }
-      const el = osmd.cursor.cursorElement;
-      if (el) {
-        el.style.width = "3px";
-        el.style.minHeight = "80px";
-        el.style.zIndex = "50";
-        el.style.filter = "none";
-        el.style.background = "#06ffd2";
-        el.style.boxShadow = "0 0 8px #06ffd2";
-        el.style.opacity = "1";
-      }
     } catch (e) {
       console.warn("[Ludilo] ScoreView part filter error:", e.message);
     }
   }, [activePart, loading]);
 
-  // Step 3: Sync cursor with playback
+  // Step 3: Sync cursor with playback — own div cursor like AlphaTabView
+  const cursorRef = useRef(null);
+
   useEffect(() => {
-    if (loading || !osmdRef.current) return;
+    if (loading || !osmdRef.current || !cursorRef.current || !containerRef.current) return;
 
     const osmd = osmdRef.current;
-    let lastBeatIndex = -1;
+    // Hide OSMD native cursor
+    if (osmd.cursor?.cursorElement) osmd.cursor.cursorElement.style.display = "none";
+
+    // Build measure time map
+    const measures = osmd.sheet?.sourceMeasures;
+    if (!measures?.length) return;
+    const tempo = osmd.sheet?.defaultStartTempoInBpm || 120;
+    const barTimes = [];
+    let cumTime = 0;
+    for (const m of measures) {
+      barTimes.push(cumTime);
+      const num = m.timeSignature?.numerator || 4;
+      const den = m.timeSignature?.denominator || 4;
+      cumTime += (60 / tempo) * num * (4 / den);
+    }
+    barTimes.push(cumTime);
+
+    // Get graphical measure bounds
+    const graphic = osmd.graphic;
+    const allMeasures = [];
+    if (graphic?.measureList) {
+      for (let i = 0; i < graphic.measureList.length; i++) {
+        const staffMeasures = graphic.measureList[i];
+        if (staffMeasures?.[0]) {
+          const sm = staffMeasures[0];
+          const box = sm.boundingBox;
+          if (box) {
+            allMeasures.push({
+              x: box.absolutePosition.x * 10,
+              y: box.absolutePosition.y * 10,
+              w: box.size.width * 10,
+              h: box.size.height * 10,
+            });
+          }
+        }
+      }
+    }
 
     const animate = () => {
       const seq = seqRef?.current;
-      if (seq && !seq.paused && osmd.cursor) {
-        try {
-          const time = seq.currentTime;
-          const duration = seq.duration || 1;
-          const totalBeats = osmd.sheet?.sourceMeasures?.length * 4 || 100;
-          const currentBeat = Math.floor((time / duration) * totalBeats);
-          if (currentBeat > lastBeatIndex) {
-            const steps = currentBeat - lastBeatIndex;
-            for (let i = 0; i < steps && !osmd.cursor.iterator?.endReached; i++) {
-              osmd.cursor.next();
+      if (!seq || !cursorRef.current) { cursorAnimRef.current = requestAnimationFrame(animate); return; }
+
+      if (seq.paused && seq.currentTime === 0) {
+        cursorRef.current.style.display = "none";
+        cursorAnimRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      if (!seq.paused) {
+        const time = seq.currentTime;
+        const rate = seq.playbackRate || 1;
+
+        // Find current measure
+        let barIdx = 0;
+        for (let i = 0; i < barTimes.length - 1; i++) {
+          if (time * rate >= barTimes[i] && time * rate < barTimes[i + 1]) { barIdx = i; break; }
+          if (i === barTimes.length - 2) barIdx = i;
+        }
+
+        if (barIdx < allMeasures.length && allMeasures[barIdx]) {
+          const barStart = barTimes[barIdx] / rate;
+          const barDur = (barTimes[barIdx + 1] - barTimes[barIdx]) / rate;
+          const progress = Math.min((time - barStart) / barDur, 1);
+          const mb = allMeasures[barIdx];
+          const x = mb.x + progress * mb.w;
+          const y = mb.y;
+          const h = mb.h;
+
+          cursorRef.current.style.display = "block";
+          cursorRef.current.style.transform = `translate(${x}px, ${y}px)`;
+          cursorRef.current.style.height = `${h}px`;
+
+          // Auto-scroll
+          if (containerRef.current) {
+            const scrollTop = containerRef.current.scrollTop;
+            const viewH = containerRef.current.clientHeight;
+            if (y < scrollTop || y + h > scrollTop + viewH) {
+              containerRef.current.scrollTop = y - 20;
             }
-            lastBeatIndex = currentBeat;
-          } else if (currentBeat < lastBeatIndex) {
-            osmd.cursor.reset();
-            lastBeatIndex = -1;
           }
-        } catch (e) { /* cursor position error after part change */ }
-      } else if (seq && seq.paused && seq.currentTime === 0 && lastBeatIndex > 0) {
-        try { osmd.cursor.reset(); } catch (e) {}
-        lastBeatIndex = -1;
+        }
       }
       cursorAnimRef.current = requestAnimationFrame(animate);
     };
@@ -174,7 +203,10 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
           <p className="text-xs text-gray-400">{resolvedUrl ? "Cargando..." : "Generando partitura..."}</p>
         </div>
       )}
-      <div ref={containerRef} className="w-full overflow-auto dark:bg-gray-900 dark:[&_svg]:invert dark:[&_svg]:hue-rotate-180" style={{ height: "calc(100vh - 280px)" }} />
+      <div ref={containerRef} className="w-full overflow-auto relative dark:bg-gray-900" style={{ height: "calc(100vh - 280px)" }}>
+        <div ref={cursorRef} className="absolute top-0 left-0 z-20 pointer-events-none w-[2px] bg-ludilo-700 dark:bg-[#06ffd2] dark:shadow-[0_0_8px_#06ffd2]" style={{ display: "none" }} />
+        <div ref={osmdContainerRef} className="dark:[&_svg]:invert dark:[&_svg]:hue-rotate-180" />
+      </div>
     </div>
   );
 }

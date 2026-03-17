@@ -152,7 +152,7 @@ export default function SongView({ isLibraryPreview }) {
               <MidiPlayer midiUrl={fileUrl} seqRef={midiSeqRef} onTracksLoaded={setMidiTracks} activePart={activePart} onPartChange={setActivePart} />
               {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} />}
               {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} seqRef={midiSeqRef} activePart={activePart} />}
-              {view === "tab" && <TabView midiUrl={fileUrl} />}
+              {view === "tab" && <TabView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onMusicXmlGenerated={setMusicXmlUrl} songTitle={song?.title} songArtist={song?.artist || song?.source} />}
             </>
           )}
         </div>

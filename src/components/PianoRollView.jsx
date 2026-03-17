@@ -8,8 +8,13 @@ export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const notesRef = useRef([]);
+  const activePartRef = useRef(activePart);
+  const tracksRef = useRef(tracks);
   const [activeNotes, setActiveNotes] = useState(new Set());
   const [error, setError] = useState(null);
+
+  activePartRef.current = activePart;
+  tracksRef.current = tracks;
 
   useEffect(() => {
     if (!midiUrl || !canvasRef.current) return;
@@ -65,10 +70,9 @@ export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks
           ctx.stroke();
         }
 
-        // Falling notes
         const colors = ["#06ffd2", "#ff06c4", "#8b5cf6", "#fbbf24"];
         const active = new Set();
-        const filterCh = activePart >= 0 && tracks[activePart] ? tracks[activePart].channel : -1;
+        const filterCh = activePartRef.current >= 0 && tracksRef.current[activePartRef.current] ? tracksRef.current[activePartRef.current].channel : -1;
         for (const note of notesRef.current) {
           if (filterCh >= 0 && note.channel !== filterCh) continue;
           if (note.midi < MIDI_MIN || note.midi >= MIDI_MAX) continue;
