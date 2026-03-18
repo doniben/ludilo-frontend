@@ -136,7 +136,7 @@ export default function Library() {
                       <p className="font-medium text-gray-900 dark:text-white truncate">{item.title}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{item.artist}</p>
                     </div>
-                    <MidiPreview blobPath={item.blobPath} title={item.title} />
+                    <MidiPreview blobPath={item.blobPath} title={item.title} source={item.source} stems={item.stems} />
                     <QualityBadge source={item.source} />
                   </motion.div>
                 ))}

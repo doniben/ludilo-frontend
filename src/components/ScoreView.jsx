@@ -14,7 +14,8 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
 
   // Step 1: Resolve URL from backend if needed
   useEffect(() => {
-    if (resolvedUrl) return;
+    setResolvedUrl(null);
+    setLoading(true);
     if (!blobPath) { setLoading(false); return; }
 
     const fetchUrl = async () => {

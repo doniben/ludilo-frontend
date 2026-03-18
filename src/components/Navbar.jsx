@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -53,9 +54,9 @@ export default function Navbar() {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link to="/library" className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
               {t("nav.library")}
-            </a>
+            </Link>
             <a href="#pricing" className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
               {t("nav.pricing")}
             </a>
@@ -146,7 +147,7 @@ export default function Navbar() {
             className="md:hidden border-t border-gray-200 dark:border-white/5 bg-white dark:bg-surface-dark-elevated overflow-hidden"
           >
             <div className="px-4 py-4 space-y-3">
-              <a href="#features" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t("nav.library")}</a>
+              <Link to="/library" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t("nav.library")}</Link>
               <a href="#pricing" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t("nav.pricing")}</a>
               <hr className="border-gray-200 dark:border-white/10" />
               <a href="/login" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t("nav.login")}</a>

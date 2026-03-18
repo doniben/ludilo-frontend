@@ -5,8 +5,10 @@
 export default function QualityBadge({ source }) {
   if (source === "ludilo") {
     return (
-      <span className="text-xs px-2 py-1 rounded-md bg-ludilo-100 dark:bg-neon-cyan/10 text-ludilo-700 dark:text-neon-cyan font-bold" title="Procesada por Ludilo IA">
-        L
+      <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-neon-cyan to-neon-magenta" title="Procesada por Ludilo IA">
+        <span className="flex items-center justify-center w-[20px] h-[20px] rounded-[4px] bg-gray-900">
+          <span className="text-neon-cyan font-bold text-[10px]">L</span>
+        </span>
       </span>
     );
   }

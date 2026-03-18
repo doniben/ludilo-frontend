@@ -8,6 +8,7 @@ import ScoreView from "../components/ScoreView";
 import PianoRollView from "../components/PianoRollView";
 import TabView from "../components/TabView";
 import MidiPlayer from "../components/MidiPlayer";
+import StemPlayer from "../components/StemPlayer";
 
 const API = import.meta.env.VITE_API_URL;
 const VIEWS = ["pianoroll", "score", "tab"];
@@ -25,6 +26,8 @@ export default function SongView({ isLibraryPreview }) {
   const [musicXmlUrl, setMusicXmlUrl] = useState(null);
   const [midiTracks, setMidiTracks] = useState([]);
   const [activePart, setActivePart] = useState(-1); // -1 = all
+  const [songStems, setSongStems] = useState(null);
+  const [activeStem, setActiveStem] = useState("guitar");
   const midiSeqRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
@@ -48,7 +51,13 @@ export default function SongView({ isLibraryPreview }) {
           });
           const data = await res.json();
           setSong(data);
-          blobPath = data.midiFiles?.[0] || data.originalBlobPath;
+          // Check if song has stems (processed by worker)
+          if (data.stems && typeof data.stems === "object" && Object.keys(data.stems).length > 0) {
+            setSongStems(data.stems);
+          }
+          blobPath = Array.isArray(data.midiFiles) ? data.midiFiles[0] :
+            (typeof data.midiFiles === "object" && data.midiFiles?.guitar) ? data.midiFiles.guitar :
+            data.originalBlobPath;
         }
 
         if (blobPath) {
@@ -149,10 +158,35 @@ export default function SongView({ isLibraryPreview }) {
             <AlphaTabView fileUrl={fileUrl} view={view} />
           ) : (
             <>
-              <MidiPlayer midiUrl={fileUrl} seqRef={midiSeqRef} onTracksLoaded={setMidiTracks} activePart={activePart} onPartChange={setActivePart} />
+              {songStems ? (
+                <StemPlayer stems={songStems} songId={song?.id} activeStem={activeStem} onStemChange={async (s) => {
+                  setActiveStem(s);
+                  const midiFiles = song?.midiFiles;
+                  if (midiFiles && midiFiles[s]) {
+                    setMidiBlobPath(midiFiles[s]);
+                    setMusicXmlUrl(null);
+                    // Update fileUrl for TabView/PianoRollView
+                    const res = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(midiFiles[s])}`);
+                    const data = await res.json();
+                    if (data.url) setFileUrl(data.url);
+                  }
+                }} onTimeUpdate={(t) => {
+                  if (!midiSeqRef.current) {
+                    midiSeqRef.current = { _time: 0, paused: true, duration: 0, playbackRate: 1 };
+                    Object.defineProperty(midiSeqRef.current, 'currentTime', { get() { return this._time; }, set(v) { this._time = v; } });
+                  }
+                  midiSeqRef.current._time = t;
+                }} onPlayStateChange={(playing) => {
+                  if (midiSeqRef.current) midiSeqRef.current.paused = !playing;
+                }} onDurationKnown={(d) => {
+                  if (midiSeqRef.current) midiSeqRef.current.duration = d;
+                }} />
+              ) : (
+                <MidiPlayer midiUrl={fileUrl} seqRef={midiSeqRef} onTracksLoaded={setMidiTracks} activePart={activePart} onPartChange={setActivePart} />
+              )}
               {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} />}
               {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} seqRef={midiSeqRef} activePart={activePart} />}
-              {view === "tab" && <TabView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onMusicXmlGenerated={setMusicXmlUrl} songTitle={song?.title} songArtist={song?.artist || song?.source} />}
+              {view === "tab" && <TabView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onMusicXmlGenerated={setMusicXmlUrl} songTitle={song?.title} songArtist={song?.artist || song?.source} chords={song?.chords} />}
             </>
           )}
         </div>

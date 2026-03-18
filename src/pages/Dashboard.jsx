@@ -45,6 +45,14 @@ export default function Dashboard() {
     } catch {}
   };
 
+  // Poll every 10s while songs are processing/queued
+  useEffect(() => {
+    const hasActive = songs.some(s => s.status === "queued" || s.status === "processing" || (s.status && !["done", "error"].includes(s.status)));
+    if (!hasActive) return;
+    const interval = setInterval(fetchSongs, 10000);
+    return () => clearInterval(interval);
+  }, [songs]);
+
   const handleLogout = () => {
     localStorage.removeItem("ludilo-token");
     localStorage.removeItem("ludilo-user");
@@ -312,22 +320,37 @@ export default function Dashboard() {
             <div className="space-y-3">
               {songs.map((song) => (
                 <div key={song.id} onClick={() => song.status === "done" && navigate(`/song/${song.id}`)} className={`card-solid p-4 flex items-center justify-between ${song.status === "done" ? "cursor-pointer hover:border-ludilo-300 dark:hover:border-neon-cyan/20" : ""}`}>
-                  <div className="flex items-center gap-3">
-                    <MusicalNoteIcon className="w-5 h-5 text-accent" />
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white text-sm">{song.title}</p>
-                      <p className="text-xs text-gray-500">{song.format.toUpperCase()}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{song.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        song.status === "done" ? "bg-green-500/10 text-green-600 dark:text-green-400" :
+                        song.status === "queued" ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400" :
+                        song.status === "error" ? "bg-red-500/10 text-red-600 dark:text-red-400" :
+                        "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                      }`}>
+                        {!["done", "error", "queued"].includes(song.status) && (
+                          <span className="inline-block w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin mr-1.5 align-middle" />
+                        )}
+                        {song.status === "queued" && song.position ? `#${song.position} · ` : ""}
+                        {t(`dashboard.status_${song.status}`, song.status)}
+                      </span>
+                      {song.progress > 0 && song.progress < 100 && (
+                        <div className="flex items-center gap-1.5 flex-1 max-w-[120px]">
+                          <div className="flex-1 h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-ludilo-500 dark:bg-neon-cyan rounded-full transition-all duration-500" style={{ width: `${song.progress}%` }} />
+                          </div>
+                          <span className="text-[10px] text-gray-400">{song.progress}%</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <span className={`text-xs font-mono px-2 py-1 rounded ${
-                    song.status === "done" ? "bg-green-500/10 text-green-600 dark:text-green-400" :
-                    song.status === "queued" ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400" :
-                    song.status === "processing" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" :
-                    "bg-gray-100 dark:bg-white/5 text-gray-500"
-                  }`}>
-                    {song.status === "queued" && song.position ? `#${song.position} · ` : ""}
-                    {t(`dashboard.status_${song.status}`, song.status)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {song.status === "done" && <MidiPreview blobPath={song.originalBlobPath} title={song.title} source={song.stems ? "ludilo" : ""} stems={song.stems} />}
+                    {song.status === "done" && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 hidden group-hover:inline" title="Puede tardar un momento mientras se descargan las pistas">Ver</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

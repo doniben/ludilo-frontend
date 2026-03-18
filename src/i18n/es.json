@@ -76,7 +76,15 @@
     "status_uploading": "Subiendo",
     "status_queued": "En cola",
     "status_processing": "Procesando",
-    "status_done": "Listo"
+    "status_downloading": "Descargando en nuestro server",
+    "status_separating": "Separando instrumentos",
+    "status_detecting_chords": "Detectando acordes",
+    "status_converting_midi": "Generando partituras",
+    "status_saving": "Guardando partituras",
+    "status_uploading_results": "Guardando partituras",
+    "status_completing": "Finalizando",
+    "status_done": "Listo",
+    "status_error": "Error"
   },
   "library": {
     "title": "Biblioteca",

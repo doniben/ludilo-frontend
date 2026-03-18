@@ -40,19 +40,22 @@ async function getSharedSynth() {
   return synthInitPromise;
 }
 
-export default function MidiPreview({ blobPath, title }) {
+export default function MidiPreview({ blobPath, title, source, stems }) {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(true); // always show for GP and MIDI
   const timerRef = useRef(null);
 
-  const isGP = /\.(gp[345x]?|gp)$/i.test(blobPath);
-  const isMidi = /\.(mid|midi)$/i.test(blobPath);
+  const isGP = /\.(gp[345x]?|gp)$/i.test(blobPath || "");
+  const isMidi = /\.(mid|midi)$/i.test(blobPath || "");
+  const isLudilo = source === "ludilo" && stems;
+  const audioRef = useRef(null);
 
   // For GP files, search for MIDI equivalent only if not a direct MIDI
   const [midiPath, setMidiPath] = useState(isMidi ? blobPath : null);
 
   useEffect(() => {
+    if (isLudilo) { setReady(true); return; }
     if (isMidi) { setMidiPath(blobPath); return; }
     if (!isGP) { setReady(false); return; }
     // GP files: we'll parse them directly with alphaTab
@@ -61,6 +64,7 @@ export default function MidiPreview({ blobPath, title }) {
 
   const stop = useCallback(() => {
     if (sharedSeq) sharedSeq.pause();
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     if (timerRef.current) clearTimeout(timerRef.current);
     setPlaying(false);
   }, []);
@@ -68,6 +72,28 @@ export default function MidiPreview({ blobPath, title }) {
   const play = useCallback(async (e) => {
     e.stopPropagation();
     if (playing) { stop(); return; }
+
+    // Ludilo: play audio stem directly
+    if (isLudilo) {
+      setLoading(true);
+      const audio = new Audio();
+      audioRef.current = audio;
+      try {
+        const stemPath = stems.vocals || stems.guitar || Object.values(stems)[0];
+        const res = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(stemPath)}`);
+        const data = await res.json();
+        if (data.url) {
+          audio.src = data.url;
+          await audio.play();
+          setPlaying(true);
+          timerRef.current = setTimeout(() => { audio.pause(); setPlaying(false); }, 15000);
+          audio.onended = () => setPlaying(false);
+        }
+      } catch (err) { console.error("[Ludilo] Preview error:", err); }
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -111,7 +137,7 @@ export default function MidiPreview({ blobPath, title }) {
     }
   }, [blobPath, playing, stop, isGP]);
 
-  if (!isGP && !isMidi) return null;
+  if (!isGP && !isMidi && !isLudilo) return null;
 
   return (
     <button

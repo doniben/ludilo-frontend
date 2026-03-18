@@ -22,7 +22,7 @@ function assignFret(midi) {
   return bestString >= 0 ? { string: bestString, fret: bestFret } : null;
 }
 
-export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [], songTitle, songArtist }) {
+export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [], songTitle, songArtist, chords = [] }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -203,6 +203,24 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
             }
           }
 
+          // Draw chords above staff
+          if (chords && chords.length > 0) {
+            ctx.font = "bold 11px sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "bottom";
+            ctx.fillStyle = isDark ? "#06ffd2" : "#0f766e";
+            for (const chord of chords) {
+              const chordTime = chord.start / rate;
+              const chordMeasure = Math.floor(chordTime / (secPerMeasure / rate));
+              const localM = chordMeasure - firstMeasure;
+              if (localM < 0 || localM >= measuresPerLine) continue;
+              const mStart = chordMeasure * (secPerMeasure / rate);
+              const posInM = (chordTime - mStart) / (secPerMeasure / rate);
+              const cx = MARGIN_LEFT + localM * measureWidth + posInM * measureWidth;
+              ctx.fillText(chord.label, cx, lineY - 8);
+            }
+          }
+
           // Draw notes in this line's measures
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -267,34 +285,8 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
             }
           }
 
-          // Bend indicators
-          const bends = notesRef.current._bends || [];
-          for (const bend of bends) {
-            if (filterCh >= 0 && bend.channel !== filterCh) continue;
-            const bendTime = bend.time / rate;
-            const bendMeasure = Math.floor(bendTime / (secPerMeasure / rate));
-            const localM = bendMeasure - firstMeasure;
-            if (localM < 0 || localM >= measuresPerLine) continue;
-            const mStart = bendMeasure * (secPerMeasure / rate);
-            const posInM = (bendTime - mStart) / (secPerMeasure / rate);
-            const bx = MARGIN_LEFT + localM * measureWidth + posInM * measureWidth;
-            const by = lineY - 5;
-            // Arrow up with "full" or "1/2"
-            ctx.strokeStyle = isDark ? "#ff6666" : "#cc0000";
-            ctx.fillStyle = isDark ? "#ff6666" : "#cc0000";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(bx, by + 12);
-            ctx.lineTo(bx, by);
-            ctx.lineTo(bx - 3, by + 4);
-            ctx.moveTo(bx, by);
-            ctx.lineTo(bx + 3, by + 4);
-            ctx.stroke();
-            ctx.font = "7px sans-serif";
-            ctx.textAlign = "center";
-            const bendAmt = Math.abs(bend.value) >= 0.8 ? "full" : "½";
-            ctx.fillText(bendAmt, bx, by - 3);
-          }
+          // Bend indicators (disabled for now - Basic Pitch generates too many false positives)
+          // TODO: re-enable when we have real GP files with intentional bends
 
           // Cursor
           for (let m = 0; m < measuresPerLine; m++) {
