@@ -4,8 +4,9 @@ import { Midi } from "@tonejs/midi";
 const MIDI_MIN = 36;
 const MIDI_MAX = 96;
 
-export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks = [] }) {
+export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks = [], lyrics }) {
   const canvasRef = useRef(null);
+  const [currentLyric, setCurrentLyric] = useState("");
   const animRef = useRef(null);
   const notesRef = useRef([]);
   const activePartRef = useRef(activePart);
@@ -51,6 +52,14 @@ export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks
         canvas.height = h;
 
         const currentTime = seqRef?.current?.currentTime || 0;
+
+        // Update current lyric
+        if (lyrics) {
+          const parsed = lyrics.split("\n").map(l => { const m = l.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/); return m ? { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3] } : null; }).filter(Boolean);
+          let cur = "";
+          for (const l of parsed) { if (l.time <= currentTime) cur = l.text; else break; }
+          setCurrentLyric(cur);
+        }
         const rate = seqRef?.current?.playbackRate || 1;
         const windowSec = 4;
         const pxPerSec = h / windowSec;
@@ -144,6 +153,7 @@ export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks
     <div className="w-full" style={{ height: "calc(100vh - 280px)" }}>
       <div className="relative w-full h-full flex flex-col">
         <canvas ref={canvasRef} className="block flex-1" />
+        {currentLyric && <div className="absolute top-3 left-0 right-0 z-10 text-center pointer-events-none"><span className="inline-block px-4 py-2 rounded-lg bg-black/80 text-lg font-medium text-purple-300">{currentLyric}</span></div>}
         <div className="flex h-20 relative select-none">
           {whiteKeys.map(({ midi }) => {
             const active = activeNotes.has(midi);

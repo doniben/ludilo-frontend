@@ -79,8 +79,7 @@ export default function MidiPreview({ blobPath, title, source, stems }) {
       const audio = new Audio();
       audioRef.current = audio;
       try {
-        const stemPath = stems.vocals || stems.guitar || Object.values(stems)[0];
-        const res = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(stemPath)}`);
+        const res = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(blobPath)}`);
         const data = await res.json();
         if (data.url) {
           audio.src = data.url;

@@ -22,7 +22,8 @@ function assignFret(midi) {
   return bestString >= 0 ? { string: bestString, fret: bestFret } : null;
 }
 
-export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [], songTitle, songArtist, chords = [] }) {
+export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [], songTitle, songArtist, chords = [], lyrics }) {
+  if (lyrics) console.log("[TabView] lyrics prop:", lyrics.length, "chars");
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -221,6 +222,32 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
             }
           }
 
+          // Draw lyrics below staff
+          if (lyrics) {
+            const parsedLyrics = lyrics.split("\n").map(l => {
+              const m = l.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+              if (!m) return null;
+              return { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3] };
+            }).filter(Boolean);
+
+            ctx.font = "italic 10px sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            ctx.fillStyle = isDark ? "#a78bfa" : "#7c3aed";
+            const staffBottom = lineY + STRING_SPACING * 5 + 12;
+            for (const lyric of parsedLyrics) {
+              if (!lyric.text) continue;
+              const lyricTime = lyric.time / rate;
+              const lyricMeasure = Math.floor(lyricTime / (secPerMeasure / rate));
+              const localM = lyricMeasure - firstMeasure;
+              if (localM < 0 || localM >= measuresPerLine) continue;
+              const mStart = lyricMeasure * (secPerMeasure / rate);
+              const posInM = (lyricTime - mStart) / (secPerMeasure / rate);
+              const lx = MARGIN_LEFT + localM * measureWidth + posInM * measureWidth;
+              ctx.fillText(lyric.text, lx, staffBottom);
+            }
+          }
+
           // Draw notes in this line's measures
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -323,7 +350,7 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
 
     load();
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
-  }, [midiUrl, seqRef, activePart, tracks]);
+  }, [midiUrl, seqRef, activePart, tracks, chords, lyrics]);
 
   if (!midiUrl) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">No hay MIDI disponible</p></div>;
   if (error) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">{error}</p></div>;

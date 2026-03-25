@@ -3,19 +3,32 @@ import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 
 const API = import.meta.env.VITE_API_URL;
 
-export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, activePart = -1 }) {
+export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, activePart = -1, chords = [], lyrics }) {
   const containerRef = useRef(null);
   const osmdContainerRef = useRef(null);
   const osmdRef = useRef(null);
   const cursorAnimRef = useRef(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [resolvedUrl, setResolvedUrl] = useState(musicXmlUrl || null);
+  const [resolvedUrl, setResolvedUrl] = useState(null);
+  const [chordOverlays, setChordOverlays] = useState([]);
+  const [lyricsOverlays, setLyricsOverlays] = useState([]);
 
   // Step 1: Resolve URL from backend if needed
+  const lastBlobRef = useRef(null);
+
   useEffect(() => {
-    setResolvedUrl(null);
     setLoading(true);
+    setError(null);
+
+    // If blobPath same as last time and we have a cached URL, reuse it
+    if (blobPath === lastBlobRef.current && musicXmlUrl) {
+      setResolvedUrl(musicXmlUrl);
+      return;
+    }
+
+    setResolvedUrl(null);
+    lastBlobRef.current = blobPath;
     if (!blobPath) { setLoading(false); return; }
 
     const fetchUrl = async () => {
@@ -32,10 +45,6 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
     };
     fetchUrl();
   }, [blobPath]);
-
-  useEffect(() => {
-    if (musicXmlUrl && !resolvedUrl) setResolvedUrl(musicXmlUrl);
-  }, [musicXmlUrl]);
 
   // Step 2: Render OSMD
   useEffect(() => {
@@ -56,6 +65,54 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
       // Hide native cursor - we use our own
       try { osmd.cursor.show(); osmd.cursor.cursorElement.style.display = "none"; } catch (e) {}
       setLoading(false);
+
+      // Position chords above measures
+      if ((chords?.length || lyrics) && osmd.sheet?.sourceMeasures) {
+        const measures = osmd.sheet.sourceMeasures;
+        const tempo = osmd.sheet.defaultStartTempoInBpm || 120;
+        const barTimes = [];
+        let cumTime = 0;
+        for (const m of measures) {
+          barTimes.push(cumTime);
+          const num = m.timeSignature?.numerator || 4;
+          const den = m.timeSignature?.denominator || 4;
+          cumTime += (60 / tempo) * num * (4 / den);
+        }
+        barTimes.push(cumTime);
+
+        const graphic = osmd.graphic;
+        const allMeasures = [];
+        if (graphic?.measureList) {
+          for (let i = 0; i < graphic.measureList.length; i++) {
+            const sm = graphic.measureList[i]?.[0];
+            if (sm?.boundingBox) {
+              const box = sm.boundingBox;
+              allMeasures.push({
+                x: box.absolutePosition.x * 10,
+                y: box.absolutePosition.y * 10,
+                w: box.size.width * 10,
+              });
+            }
+          }
+        }
+
+        const overlays = [];
+        for (const chord of chords) {
+          let barIdx = 0;
+          for (let i = 0; i < barTimes.length - 1; i++) {
+            if (chord.start >= barTimes[i] && chord.start < barTimes[i + 1]) { barIdx = i; break; }
+          }
+          if (barIdx < allMeasures.length) {
+            const mb = allMeasures[barIdx];
+            const barStart = barTimes[barIdx];
+            const barDur = barTimes[barIdx + 1] - barTimes[barIdx];
+            const progress = (chord.start - barStart) / barDur;
+            overlays.push({ label: chord.label, x: mb.x + progress * mb.w, y: mb.y - 24 });
+          }
+        }
+        setChordOverlays(overlays);
+
+      }
     }).catch(e => {
       setError(e.message);
       setLoading(false);
@@ -63,6 +120,57 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
 
     return () => { osmd.clear(); osmdRef.current = null; };
   }, [resolvedUrl]);
+
+
+  // Lyrics overlays - separate effect to avoid reloading OSMD
+  useEffect(() => {
+    if (!lyrics || !osmdRef.current || loading) { setLyricsOverlays([]); return; }
+    const osmd = osmdRef.current;
+    const measures = osmd.sheet?.sourceMeasures;
+    if (!measures?.length) return;
+    const tempo = osmd.sheet.defaultStartTempoInBpm || 120;
+    const barTimes = [];
+    let cumTime = 0;
+    for (const m of measures) {
+      barTimes.push(cumTime);
+      const num = m.timeSignature?.numerator || 4;
+      const den = m.timeSignature?.denominator || 4;
+      cumTime += (60 / tempo) * num * (4 / den);
+    }
+    barTimes.push(cumTime);
+    const graphic = osmd.graphic;
+    const allMeasures = [];
+    if (graphic?.measureList) {
+      for (let i = 0; i < graphic.measureList.length; i++) {
+        const sm = graphic.measureList[i]?.[0];
+        if (sm?.boundingBox) {
+          const box = sm.boundingBox;
+          allMeasures.push({ x: box.absolutePosition.x * 10, y: box.absolutePosition.y * 10, w: box.size.width * 10 });
+        }
+      }
+    }
+    const parsedLyrics = lyrics.split("\n").map(l => {
+      const m = l.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+      if (!m) return null;
+      return { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3] };
+    }).filter(Boolean);
+    const ovs = [];
+    for (const lyric of parsedLyrics) {
+      if (!lyric.text) continue;
+      let barIdx = 0;
+      for (let i = 0; i < barTimes.length - 1; i++) {
+        if (lyric.time >= barTimes[i] && lyric.time < barTimes[i + 1]) { barIdx = i; break; }
+      }
+      if (barIdx < allMeasures.length) {
+        const mb = allMeasures[barIdx];
+        const barStart = barTimes[barIdx];
+        const barDur = barTimes[barIdx + 1] - barTimes[barIdx];
+        const progress = (lyric.time - barStart) / barDur;
+        ovs.push({ text: lyric.text, x: mb.x + progress * mb.w, y: mb.y + 60 });
+      }
+    }
+    setLyricsOverlays(ovs);
+  }, [lyrics, loading]);
 
   // Filter visible parts
   useEffect(() => {
@@ -206,6 +314,12 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
       )}
       <div ref={containerRef} className="w-full overflow-auto relative dark:bg-gray-900" style={{ height: "calc(100vh - 280px)" }}>
         <div ref={cursorRef} className="absolute top-0 left-0 z-20 pointer-events-none w-[2px] bg-ludilo-700 dark:bg-[#06ffd2] dark:shadow-[0_0_8px_#06ffd2]" style={{ display: "none" }} />
+        {chordOverlays.map((c, i) => (
+          <span key={i} className="absolute z-10 text-[11px] font-bold text-teal-600 dark:text-cyan-400 pointer-events-none" style={{ left: c.x, top: c.y }}>{c.label}</span>
+        ))}
+        {lyrics && lyricsOverlays.map((l, i) => (
+          <span key={`ly${i}`} className="absolute z-10 text-[10px] italic text-purple-500 dark:text-purple-400 pointer-events-none" style={{ left: l.x, top: l.y }}>{l.text}</span>
+        ))}
         <div ref={osmdContainerRef} className="dark:[&_svg]:invert dark:[&_svg]:hue-rotate-180" />
       </div>
     </div>

@@ -28,6 +28,10 @@ export default function SongView({ isLibraryPreview }) {
   const [activePart, setActivePart] = useState(-1); // -1 = all
   const [songStems, setSongStems] = useState(null);
   const [activeStem, setActiveStem] = useState("guitar");
+  const [lyrics, setLyrics] = useState(null);
+  const [lyricsVisible, setLyricsVisible] = useState(false);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [toast, setToast] = useState(null);
   const midiSeqRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
@@ -150,6 +154,29 @@ export default function SongView({ isLibraryPreview }) {
                 </button>
               ))}
             </div>
+            {/* Lyrics toggle */}
+            <button
+              disabled={!songId && !song?.id} onClick={async () => {
+                if (lyrics) { setLyricsVisible(!lyricsVisible); return; }
+                setLyricsLoading(true);
+                try {
+                  const token = localStorage.getItem("ludilo-token");
+                  const res = await fetch(`${API}/songs/${songId || song?.id}/lyrics`, { headers: { Authorization: `Bearer ${token}` } });
+                  const data = await res.json();
+                  console.log("[Lyrics] got:", data.lyrics ? data.lyrics.length + " chars" : "null"); if (data.lyrics) { setLyrics(data.lyrics); setLyricsVisible(true); } else { setToast("No se encontró letra para esta canción"); setTimeout(() => setToast(null), 3000); }
+                } catch {}
+                setLyricsLoading(false);
+              }}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                lyricsVisible ? "bg-ludilo-200 dark:bg-neon-cyan/20 text-ludilo-700 dark:text-neon-cyan" : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
+              }`}
+            >
+              {lyricsLoading ? (
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              ) : (
+                <span className="text-xs font-bold">Aa</span>
+              )}
+            </button>
           </div>
         </motion.div>
 
@@ -184,13 +211,18 @@ export default function SongView({ isLibraryPreview }) {
               ) : (
                 <MidiPlayer midiUrl={fileUrl} seqRef={midiSeqRef} onTracksLoaded={setMidiTracks} activePart={activePart} onPartChange={setActivePart} />
               )}
-              {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} />}
-              {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} seqRef={midiSeqRef} activePart={activePart} />}
-              {view === "tab" && <TabView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onMusicXmlGenerated={setMusicXmlUrl} songTitle={song?.title} songArtist={song?.artist || song?.source} chords={song?.chords} />}
+              {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} lyrics={lyricsVisible ? lyrics : null} />}
+              {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} seqRef={midiSeqRef} activePart={activePart} chords={song?.chords} lyrics={lyricsVisible ? lyrics : null} />}
+              {view === "tab" && <TabView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onMusicXmlGenerated={setMusicXmlUrl} songTitle={song?.title} songArtist={song?.artist || song?.source} chords={song?.chords} lyrics={lyricsVisible ? lyrics : null} />}
             </>
           )}
         </div>
       </div>
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl bg-gray-900/95 dark:bg-white/10 backdrop-blur-md border border-white/10 shadow-lg shadow-black/20 animate-fade-in">
+          <p className="text-sm text-gray-200 dark:text-gray-300">{toast}</p>
+        </div>
+      )}
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FireIcon, MusicalNoteIcon, TrophyIcon, ArrowUpTrayIcon, CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import MidiPreview from "../components/MidiPreview";
+import QualityBadge from "../components/QualityBadge";
 
 const ALLOWED = ["mp3", "wav", "m4a", "flac", "ogg"];
 const API = import.meta.env.VITE_API_URL;
@@ -347,6 +348,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     {song.status === "done" && <MidiPreview blobPath={song.originalBlobPath} title={song.title} source={song.stems ? "ludilo" : ""} stems={song.stems} />}
+                    {song.status === "done" && <QualityBadge source={typeof song.stems === "object" && !Array.isArray(song.stems) && Object.keys(song.stems || {}).length > 0 ? "ludilo" : song.format && song.format.startsWith("gp") ? "guitarpro" : "midi"} />}
                     {song.status === "done" && (
                       <span className="text-xs text-gray-400 dark:text-gray-500 hidden group-hover:inline" title="Puede tardar un momento mientras se descargan las pistas">Ver</span>
                     )}

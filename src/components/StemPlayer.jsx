@@ -269,7 +269,7 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
 
       {/* Stem mixer (collapsible) */}
       {showMixer && (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1">
         {Object.entries(stems).map(([name]) => {
           const vol = volumes[name] ?? 100;
           const isSolo = soloStem === name;
@@ -277,7 +277,7 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
           const color = STEM_COLORS[name] || "#888";
 
           return (
-            <div key={name} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5">
+            <div key={name} className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-gray-50 dark:bg-white/5">
               {/* Solo button */}
               <button
                 onClick={() => setSoloStem(isSolo ? null : name)}
