@@ -36,7 +36,7 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volumes, setVolumes] = useState({});
-  const [soloStem, setSoloStem] = useState(null);
+  const [soloStems, setSoloStems] = useState(new Set());
   const [showMixer, setShowMixer] = useState(false);
   const [speed, setSpeed] = useState(100);
   const animRef = useRef(null);
@@ -183,10 +183,10 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
   useEffect(() => {
     for (const [name, gain] of Object.entries(gainNodesRef.current)) {
       const vol = volumes[name] ?? 100;
-      const muted = soloStem && soloStem !== name;
+      const muted = soloStems.size > 0 && !soloStems.has(name);
       gain.gain.value = muted ? 0 : vol / 100;
     }
-  }, [volumes, soloStem]);
+  }, [volumes, soloStems]);
 
   // Speed change
   useEffect(() => {
@@ -272,15 +272,15 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
       <div className="flex flex-wrap gap-1">
         {Object.entries(stems).map(([name]) => {
           const vol = volumes[name] ?? 100;
-          const isSolo = soloStem === name;
-          const isMuted = soloStem && soloStem !== name;
+          const isSolo = soloStems.has(name);
+          const isMuted = soloStems.size > 0 && !soloStems.has(name);
           const color = STEM_COLORS[name] || "#888";
 
           return (
             <div key={name} className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-gray-50 dark:bg-white/5">
               {/* Solo button */}
               <button
-                onClick={() => setSoloStem(isSolo ? null : name)}
+                onClick={() => { const next = new Set(soloStems); if (next.has(name)) next.delete(name); else next.add(name); setSoloStems(next); }}
                 className={`text-[10px] w-5 h-5 rounded flex items-center justify-center font-bold ${isSolo ? "text-white" : "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"}`}
                 style={isSolo ? { backgroundColor: color } : {}}
               >
