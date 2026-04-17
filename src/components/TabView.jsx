@@ -25,6 +25,9 @@ function assignFret(midi) {
 export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [], songTitle, songArtist, chords = [], lyrics }) {
   if (lyrics) console.log("[TabView] lyrics prop:", lyrics.length, "chars");
   const containerRef = useRef(null);
+  const [showNoteNames, setShowNoteNames] = useState(false);
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const midiToNote = (m) => NOTE_NAMES[m % 12] + Math.floor(m / 12 - 1);
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const notesRef = useRef([]);
@@ -270,15 +273,15 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
 
             const color = isActive ? "#06ffd2" : (isDark ? "#e0e0e0" : "#000000");
             ctx.fillStyle = color;
-            ctx.font = isActive ? "bold 14px monospace" : "13px monospace";
+            ctx.font = isActive ? (showNoteNames ? "bold 10px monospace" : "bold 14px monospace") : (showNoteNames ? "9px monospace" : "13px monospace");
             if (isActive) { ctx.shadowColor = "#06ffd2"; ctx.shadowBlur = 6; }
             // Ghost note (low velocity)
             if (note.velocity < 0.4) {
               ctx.globalAlpha = 0.5;
-              ctx.fillText(`(${note.fret})`, x, y);
+              ctx.fillText(showNoteNames ? `(${midiToNote(note.midi)})` : `(${note.fret})`, x, y);
               ctx.globalAlpha = 1;
             } else {
-              ctx.fillText(note.fret.toString(), x, y);
+              ctx.fillText(showNoteNames ? midiToNote(note.midi) : note.fret.toString(), x, y);
             }
             ctx.shadowBlur = 0;
 
@@ -350,13 +353,14 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
 
     load();
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
-  }, [midiUrl, seqRef, activePart, tracks, chords, lyrics]);
+  }, [midiUrl, seqRef, activePart, tracks, chords, lyrics, showNoteNames]);
 
   if (!midiUrl) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">No hay MIDI disponible</p></div>;
   if (error) return <div className="flex items-center justify-center h-64 text-gray-400"><p className="text-sm">{error}</p></div>;
 
   return (
-    <div ref={containerRef} className="w-full" style={{ height: "calc(100vh - 280px)", overflow: "auto" }}>
+    <div ref={containerRef} className="w-full relative" style={{ height: "calc(100vh - 280px)", overflow: "auto" }}>
+      <button onClick={() => setShowNoteNames(!showNoteNames)} className={`absolute top-2 right-2 z-10 px-2 py-1 rounded text-[10px] font-bold transition-all ${showNoteNames ? "bg-ludilo-200 dark:bg-neon-cyan/20 text-ludilo-700 dark:text-neon-cyan" : "bg-gray-200/80 dark:bg-white/10 text-gray-500 dark:text-gray-400"}`}>{showNoteNames ? "C D E" : "1 2 3"}</button>
       {loading && (
         <div className="flex items-center justify-center h-64 gap-2">
           <svg className="w-6 h-6 animate-spin text-ludilo-500 dark:text-neon-cyan" viewBox="0 0 24 24" fill="none">
