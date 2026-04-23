@@ -27,7 +27,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const stored = localStorage.getItem("ludilo-user");
-    if (!stored) { navigate("/login"); return; }
+    if (!stored) { navigate("/register"); return; }
     setUser(JSON.parse(stored));
     fetchSongs();
   }, [navigate]);
