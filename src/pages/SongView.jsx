@@ -31,6 +31,7 @@ export default function SongView({ isLibraryPreview }) {
   const [lyrics, setLyrics] = useState(null);
   const [lyricsVisible, setLyricsVisible] = useState(false);
   const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [midiMode, setMidiMode] = useState(false);
   const [toast, setToast] = useState(null);
   const midiSeqRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +178,15 @@ export default function SongView({ isLibraryPreview }) {
                 <span className="text-xs font-bold">Aa</span>
               )}
             </button>
+            {/* MIDI/MP3 toggle (only for Ludilo songs with stems) */}
+            {songStems && (
+              <button
+                onClick={() => setMidiMode(!midiMode)}
+                className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${midiMode ? "bg-ludilo-200 dark:bg-neon-cyan/20 text-ludilo-700 dark:text-neon-cyan" : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"}`}
+              >
+                {midiMode ? "MIDI" : "MP3"}
+              </button>
+            )}
           </div>
         </motion.div>
 
@@ -185,7 +195,7 @@ export default function SongView({ isLibraryPreview }) {
             <AlphaTabView fileUrl={fileUrl} view={view} />
           ) : (
             <>
-              {songStems ? (
+              {songStems && !midiMode ? (
                 <StemPlayer stems={songStems} songId={song?.id} activeStem={activeStem} onStemChange={async (s) => {
                   setActiveStem(s);
                   const midiFiles = song?.midiFiles;
