@@ -22,6 +22,7 @@ export default function Library() {
   const [results, setResults] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [stats, setStats] = useState(null);
   const [totalPages, setTotalPages] = useState(0);
   const [source, setSource] = useState("all");
   const [loading, setLoading] = useState(false);
@@ -48,6 +49,10 @@ export default function Library() {
     }
   }, [source]);
 
+
+  useEffect(() => {
+    fetch(`${API}/library/stats`).then(r => r.json()).then(setStats).catch(() => {});
+  }, []);
   useEffect(() => {
     if (query.length >= 2) {
       const timer = setTimeout(() => search(query, 1, source), 400);
@@ -68,7 +73,25 @@ export default function Library() {
           <h1 className="font-display font-bold text-3xl text-gray-900 dark:text-white mb-2">
             {t("library.title")}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mb-8">{t("library.subtitle")}</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">{t("library.subtitle")}</p>
+
+          {stats && (
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20">
+                <QualityBadge source="guitarpro" />
+                <span className="text-xs font-bold text-green-700 dark:text-green-400">{stats.guitarpro?.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                <QualityBadge source="midi" />
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{stats.midi?.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ludilo-50 dark:bg-neon-cyan/10">
+                <QualityBadge source="ludilo" />
+                <span className="text-xs font-bold text-ludilo-700 dark:text-neon-cyan">{stats.ludilo?.toLocaleString()}</span>
+              </div>
+              <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">{stats.total?.toLocaleString()} pistas</span>
+            </div>
+          )}
 
           {/* Search bar */}
           <div className="flex gap-3 mb-6">
