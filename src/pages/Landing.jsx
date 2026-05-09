@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { AdjustmentsHorizontalIcon, CpuChipIcon, MusicalNoteIcon, SpeakerWaveIcon, BookOpenIcon, ClockIcon } from "@heroicons/react/24/outline";
 
+import QualityBadge from "../components/QualityBadge";
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } };
+const API = import.meta.env.VITE_API_URL;
 const fadeUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
 
 function WaveformVisual() {
@@ -43,6 +46,8 @@ function FeatureCard({ Icon, title, description, delay }) {
 
 export default function Landing() {
   const { t } = useTranslation();
+  const [stats, setStats] = useState(null);
+  useEffect(() => { fetch(`${API}/library/stats`).then(r => r.json()).then(setStats).catch(() => {}); }, []);
 
   const features = [
     { Icon: AdjustmentsHorizontalIcon, key: "stems" },
@@ -88,7 +93,7 @@ export default function Landing() {
           </motion.p>
 
           <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="/upload" className="btn-primary text-base px-8 py-4">
+            <a href="/dashboard" className="btn-primary text-base px-8 py-4">
               {t("hero.cta")}
             </a>
             <a href="/library" className="btn-secondary text-base px-8 py-4">
@@ -113,6 +118,48 @@ export default function Landing() {
           </div>
         </motion.div>
       </section>
+
+
+      {/* Library Stats */}
+      {stats && (
+        <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="relative py-16 px-4 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#06ffd2]/[0.02] to-transparent" />
+          <div className="max-w-4xl mx-auto relative">
+            <div className="grid grid-cols-3 gap-4 sm:gap-8">
+              <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }} className="relative group">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative text-center py-8 px-4">
+<div className="flex justify-center mb-2"><QualityBadge source="guitarpro" /></div>
+                  <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-1">{stats.guitarpro?.toLocaleString()}</p>
+                  <p className="text-sm text-blue-400 font-medium tracking-wide uppercase">Tablaturas</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1">Guitar Pro</p>
+                </div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="relative group">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative text-center py-8 px-4">
+<div className="flex justify-center mb-2"><QualityBadge source="midi" /></div>
+                  <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-1">{stats.midi?.toLocaleString()}</p>
+                  <p className="text-sm text-purple-400 font-medium tracking-wide uppercase">Secuencias</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1">MIDI</p>
+                </div>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="relative group">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#06ffd2]/10 to-[#ff06c4]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative text-center py-8 px-4">
+                  <div className="flex justify-center mb-2"><QualityBadge source="ludilo" /></div>
+                  <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-1">{stats.ludilo?.toLocaleString()}</p>
+                  <p className="text-sm text-teal-700 dark:text-[#06ffd2] font-medium tracking-wide uppercase">Ludilo IA</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1">MP3 + MIDI</p>
+
+
+                </div>
+              </motion.div>
+            </div>
+            <div className="text-center mt-8"><p className="font-bold text-4xl sm:text-5xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-fuchsia-500 dark:from-neon-cyan dark:via-ludilo-400 dark:to-neon-magenta bg-clip-text text-transparent">{stats.total?.toLocaleString()}</p><p className="text-sm text-gray-500 mt-1">Canciones listas para aprender</p></div>
+          </div>
+        </motion.section>
+      )}
 
       {/* Features */}
       <section id="features" className="relative py-24 px-4">
