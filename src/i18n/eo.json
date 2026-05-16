@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Hejmo",
+    "library": "Biblioteko",
+    "upload": "Alŝuti",
+    "pricing": "Prezoj",
+    "login": "Ensaluti",
+    "register": "Registriĝi"
+  },
+  "hero": {
+    "title": "Apartigu. Vidigu. Lernu.",
+    "subtitle": "Alŝutu iun ajn kanton kaj Ludilo apartigas la instrumentojn, generas partiturojn kaj tablaturojn en reala tempo. Via Guitar Pro interrete.",
+    "cta": "Alŝuti kanton",
+    "cta_secondary": "Esplori bibliotekon"
+  },
+  "features": {
+    "title": "Ĉio kion vi bezonas por lerni muzikon",
+    "stems": {
+      "title": "Apartigo de instrumentoj",
+      "description": "AI kiu apartigas voĉojn, gitaron, bason, tamburojn kaj pianon el iu ajn kanto"
+    },
+    "midi": {
+      "title": "Konverto al MIDI",
+      "description": "Ĉiu instrumento konvertita al MIDI por vidigo kaj redaktado"
+    },
+    "visualization": {
+      "title": "Piano Roll & Tablaturo",
+      "description": "Notoj falantaj kiel en ludo, klasika partituro aŭ gitara tablaturo"
+    },
+    "mixer": {
+      "title": "Profesia miksilo",
+      "description": "Kontrolu la volumon de ĉiu instrumento. Solo, mute, kaj anstataŭigu per alia instrumento"
+    },
+    "library": {
+      "title": "Biblioteko de 2M+ kantoj",
+      "description": "Tuja aliro al milionoj da MIDI-oj pretaj por praktikado"
+    },
+    "speed": {
+      "title": "Rapideca kontrolo",
+      "description": "Malrapidigu por praktiki malfacilajn partojn sen ŝanĝi la tonon"
+    }
+  },
+  "theme": {
+    "light": "Hela",
+    "dark": "Malhela"
+  },
+  "language": {
+    "es": "Español",
+    "eo": "Esperanto",
+    "en": "English"
+  },
+  "footer": {
+    "tagline": "Lernu muzikon vide kaj interage",
+    "rights": "Ĉiuj rajtoj rezervitaj"
+  }
+}

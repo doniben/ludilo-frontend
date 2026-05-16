@@ -1,0 +1,87 @@
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@200,300,400,500,600,700&f[]=satoshi@300,400,500,700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-accent: #06ffd2;
+    --color-accent-secondary: #ff06c4;
+    --glow-strength: 0.4;
+  }
+
+  .dark {
+    --color-accent: #06ffd2;
+    --color-accent-secondary: #ff06c4;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply font-body antialiased transition-colors duration-300;
+  }
+
+  .dark body {
+    @apply bg-surface-dark text-white;
+  }
+
+  body {
+    @apply bg-surface-light text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply relative overflow-hidden rounded-xl px-6 py-3 font-display font-semibold text-sm uppercase tracking-wider
+           bg-gradient-to-r from-neon-cyan to-ludilo-400
+           text-surface-dark
+           shadow-lg shadow-neon-cyan/20
+           transition-all duration-300
+           hover:shadow-xl hover:shadow-neon-cyan/30 hover:scale-[1.02]
+           active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply rounded-xl px-6 py-3 font-display font-semibold text-sm uppercase tracking-wider
+           border-2 border-neon-cyan/30 text-neon-cyan
+           transition-all duration-300
+           hover:border-neon-cyan hover:bg-neon-cyan/5
+           dark:border-neon-cyan/30 dark:text-neon-cyan;
+  }
+
+  .card-glass {
+    @apply rounded-2xl border border-white/10 backdrop-blur-xl
+           bg-white/5 dark:bg-white/5
+           shadow-xl;
+  }
+
+  .card-solid {
+    @apply rounded-2xl border
+           bg-surface-light-card border-gray-200
+           dark:bg-surface-dark-card dark:border-white/10
+           shadow-lg dark:shadow-none;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-neon-cyan via-ludilo-400 to-neon-magenta;
+  }
+
+  .glow-text {
+    text-shadow: 0 0 20px var(--color-accent), 0 0 40px var(--color-accent);
+  }
+
+  .noise-overlay {
+    @apply pointer-events-none fixed inset-0 z-50 opacity-[0.015] bg-noise bg-repeat;
+  }
+}
+
+@layer utilities {
+  .animate-delay-100 { animation-delay: 100ms; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-300 { animation-delay: 300ms; }
+  .animate-delay-400 { animation-delay: 400ms; }
+  .animate-delay-500 { animation-delay: 500ms; }
+}

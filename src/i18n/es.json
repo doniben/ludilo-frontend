@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "library": "Biblioteca",
+    "upload": "Subir",
+    "pricing": "Precios",
+    "login": "Iniciar sesión",
+    "register": "Registrarse"
+  },
+  "hero": {
+    "title": "Separa. Visualiza. Aprende.",
+    "subtitle": "Sube cualquier canción y Ludilo separa los instrumentos, genera partituras y tablaturas en tiempo real. Tu Guitar Pro online.",
+    "cta": "Subir canción",
+    "cta_secondary": "Explorar biblioteca"
+  },
+  "features": {
+    "title": "Todo lo que necesitas para aprender música",
+    "stems": {
+      "title": "Separación de instrumentos",
+      "description": "IA que separa voces, guitarra, bajo, batería y piano de cualquier canción"
+    },
+    "midi": {
+      "title": "Conversión a MIDI",
+      "description": "Cada instrumento convertido a MIDI para visualización y edición"
+    },
+    "visualization": {
+      "title": "Piano Roll & Tablatura",
+      "description": "Notas cayendo como en un juego, partitura clásica o tablatura de guitarra"
+    },
+    "mixer": {
+      "title": "Mixer profesional",
+      "description": "Controla el volumen de cada instrumento. Solo, mute, y reemplaza por otro instrumento"
+    },
+    "library": {
+      "title": "Biblioteca de 2M+ canciones",
+      "description": "Acceso instantáneo a millones de MIDIs listos para practicar"
+    },
+    "speed": {
+      "title": "Control de velocidad",
+      "description": "Reduce la velocidad para practicar pasajes difíciles sin cambiar el tono"
+    }
+  },
+  "theme": {
+    "light": "Claro",
+    "dark": "Oscuro"
+  },
+  "language": {
+    "es": "Español",
+    "eo": "Esperanto",
+    "en": "English"
+  },
+  "footer": {
+    "tagline": "Aprende música de forma visual e interactiva",
+    "rights": "Todos los derechos reservados"
+  }
+}

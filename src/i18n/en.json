@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Home",
+    "library": "Library",
+    "upload": "Upload",
+    "pricing": "Pricing",
+    "login": "Sign in",
+    "register": "Sign up"
+  },
+  "hero": {
+    "title": "Separate. Visualize. Learn.",
+    "subtitle": "Upload any song and Ludilo separates the instruments, generates sheet music and tablature in real time. Your online Guitar Pro.",
+    "cta": "Upload song",
+    "cta_secondary": "Explore library"
+  },
+  "features": {
+    "title": "Everything you need to learn music",
+    "stems": {
+      "title": "Instrument separation",
+      "description": "AI that separates vocals, guitar, bass, drums and piano from any song"
+    },
+    "midi": {
+      "title": "MIDI conversion",
+      "description": "Each instrument converted to MIDI for visualization and editing"
+    },
+    "visualization": {
+      "title": "Piano Roll & Tablature",
+      "description": "Notes falling like a game, classic sheet music or guitar tablature"
+    },
+    "mixer": {
+      "title": "Professional mixer",
+      "description": "Control the volume of each instrument. Solo, mute, and replace with another instrument"
+    },
+    "library": {
+      "title": "Library of 2M+ songs",
+      "description": "Instant access to millions of MIDIs ready to practice"
+    },
+    "speed": {
+      "title": "Speed control",
+      "description": "Slow down to practice difficult passages without changing the pitch"
+    }
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "es": "Español",
+    "eo": "Esperanto",
+    "en": "English"
+  },
+  "footer": {
+    "tagline": "Learn music visually and interactively",
+    "rights": "All rights reserved"
+  }
+}
