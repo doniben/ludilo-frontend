@@ -28,7 +28,21 @@ export default function UserProfile() {
         if (profileRes.ok) setProfile(await profileRes.json());
         if (songsRes.ok) {
           const data = await songsRes.json();
-          setSongs(data.songs || []);
+          const profileSongs = data.songs || [];
+          setSongs(profileSongs);
+
+          // Check which songs I already have
+          if (token) {
+            try {
+              const myRes = await fetch(`${API}/songs`, { headers: { Authorization: `Bearer ${token}` } });
+              if (myRes.ok) {
+                const myData = await myRes.json();
+                const myPaths = new Set((myData.songs || []).map(s => s.originalBlobPath));
+                const alreadyAdded = new Set(profileSongs.filter(s => myPaths.has(s.originalBlobPath)).map(s => s.id));
+                setAddedIds(alreadyAdded);
+              }
+            } catch {}
+          }
         }
       } catch {}
       setLoading(false);
