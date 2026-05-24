@@ -148,8 +148,8 @@ export default function SongView({ isLibraryPreview }) {
           </div>
 
           <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Add to my songs button (library preview or other user's song) */}
-            {((isLibraryPreview) || (uploader && token)) && (
+            {/* Add to my songs button (library preview or other user's song that's not already mine) */}
+            {((isLibraryPreview) || (uploader && token && song?.userId !== JSON.parse(localStorage.getItem("ludilo-user") || "{}").id)) && (
               <button
                 onClick={addToMySongs}
                 disabled={added}
