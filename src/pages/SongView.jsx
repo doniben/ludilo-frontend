@@ -57,8 +57,8 @@ export default function SongView({ isLibraryPreview }) {
           });
           const data = await res.json();
           setSong(data);
-          // Fetch uploader profile (original uploader if it's a copy, or owner if viewing someone else's)
-          const uploaderUid = data.originalUserId || data.userId;
+          // Fetch uploader profile (only for Ludilo-processed songs)
+          const uploaderUid = data.originalUserId || (data.stems && typeof data.stems === "object" && Object.keys(data.stems).length > 0 ? data.userId : null);
           if (uploaderUid) {
             const currentUser = localStorage.getItem("ludilo-user");
             const currentId = currentUser ? JSON.parse(currentUser).id : null;

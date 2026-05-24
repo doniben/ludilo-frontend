@@ -116,7 +116,7 @@ export default function UserProfile() {
                   </div>
                   <div className="flex items-center gap-2">
                     <MidiPreview blobPath={song.originalBlobPath || (Array.isArray(song.midiFiles) ? song.midiFiles[0] : Object.values(song.midiFiles || {})[0])} title={song.title} source={song.stems && Object.keys(song.stems).length ? "ludilo" : ""} stems={song.stems} />
-                    {token && (
+                    {token && song.stems && typeof song.stems === "object" && Object.keys(song.stems).length > 0 && (
                       <button
                         onClick={() => addToMySongs(song)}
                         disabled={addedIds.has(song.id)}
