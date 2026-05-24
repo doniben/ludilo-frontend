@@ -95,7 +95,7 @@ export default function SongView({ isLibraryPreview }) {
             const myRes = await fetch(`${API}/songs`, { headers: { Authorization: `Bearer ${token}` } });
             if (myRes.ok) {
               const myData = await myRes.json();
-              const checkPath = isLibraryPreview ? searchParams.get("blobPath") : blobPath;
+              const checkPath = isLibraryPreview ? searchParams.get("blobPath") : (data?.originalBlobPath || blobPath);
               if ((myData.songs || []).some(s => s.originalBlobPath === checkPath)) setAdded(true);
             }
           } catch {}
