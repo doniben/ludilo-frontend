@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FireIcon, MusicalNoteIcon, TrophyIcon, ArrowUpTrayIcon, CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { FireIcon, MusicalNoteIcon, TrophyIcon, ArrowUpTrayIcon, CheckCircleIcon, XMarkIcon, UserIcon } from "@heroicons/react/24/outline";
 import MidiPreview from "../components/MidiPreview";
 import QualityBadge from "../components/QualityBadge";
 
@@ -24,6 +24,7 @@ export default function Dashboard() {
 
   const token = localStorage.getItem("ludilo-token");
   const [songs, setSongs] = useState([]);
+  const [uploaders, setUploaders] = useState({});
 
   useEffect(() => {
     const stored = localStorage.getItem("ludilo-user");
@@ -41,7 +42,18 @@ export default function Dashboard() {
       });
       if (res.ok) {
         const data = await res.json();
-        setSongs(data.songs || []);
+        const songsList = data.songs || [];
+        setSongs(songsList);
+        // Fetch profiles for songs from other users
+        const uids = [...new Set(songsList.filter(s => s.originalUserId).map(s => s.originalUserId))];
+        const profiles = {};
+        await Promise.all(uids.map(async (uid) => {
+          try {
+            const r = await fetch(`${API}/users/${uid}/profile`);
+            if (r.ok) profiles[uid] = await r.json();
+          } catch {}
+        }));
+        setUploaders(prev => ({ ...prev, ...profiles }));
       }
     } catch {}
   };
@@ -322,7 +334,15 @@ export default function Dashboard() {
               {songs.map((song) => (
                 <div key={song.id} onClick={() => song.status === "done" && navigate(`/song/${song.id}`)} className={`card-solid p-4 flex items-center justify-between ${song.status === "done" ? "cursor-pointer hover:border-ludilo-300 dark:hover:border-neon-cyan/20" : ""}`}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{song.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{song.title}</p>
+                      {song.originalUserId && uploaders[song.originalUserId] && (
+                        <button onClick={(e) => { e.stopPropagation(); navigate(`/user/${song.originalUserId}`); }} className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20 hover:bg-ludilo-100 dark:hover:bg-neon-cyan/10 transition-colors flex-shrink-0">
+                          <UserIcon className="w-3 h-3 text-ludilo-600 dark:text-neon-cyan" />
+                          <span className="text-[11px] font-medium text-ludilo-700 dark:text-neon-cyan">de {uploaders[song.originalUserId].username}</span>
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         song.status === "done" ? "bg-green-500/10 text-green-600 dark:text-green-400" :
@@ -348,7 +368,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     {song.status === "done" && <MidiPreview blobPath={song.originalBlobPath} title={song.title} source={song.stems && Object.keys(song.stems).length ? "ludilo" : ""} stems={song.stems} />}
-                    {song.status === "done" && <QualityBadge source={typeof song.stems === "object" && !Array.isArray(song.stems) && Object.keys(song.stems || {}).length > 0 ? "ludilo" : song.format && song.format.startsWith("gp") ? "guitarpro" : "midi"} />}
+                    {song.status === "done" && <QualityBadge source={typeof song.stems === "object" && !Array.isArray(song.stems) && Object.keys(song.stems || {}).length > 0 ? "ludilo" : song.librarySource === "ludilo" ? "ludilo" : song.librarySource === "guitarpro" ? "guitarpro" : song.format && song.format.startsWith("gp") ? "guitarpro" : "midi"} />}
                     {song.status === "done" && (
                       <span className="text-xs text-gray-400 dark:text-gray-500 hidden group-hover:inline" title="Puede tardar un momento mientras se descargan las pistas">Ver</span>
                     )}

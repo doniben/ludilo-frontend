@@ -117,6 +117,7 @@
   },
   "profile": {
     "songs_of": "Canciones de {{name}}",
-    "no_songs": "Este usuario aún no tiene canciones"
+    "no_songs": "Este usuario aún no tiene canciones",
+    "songs": "Canciones"
   }
 }

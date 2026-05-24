@@ -110,6 +110,7 @@ export default function SongView({ isLibraryPreview }) {
         artist: isLibraryPreview ? (searchParams.get("artist") || "") : "",
         source: isLibraryPreview ? (searchParams.get("source") || "") : "ludilo",
         format: isLibraryPreview ? (searchParams.get("format") || "") : (song?.format || "stems+midi"),
+        originalUserId: isLibraryPreview ? "" : (song?.userId || ""),
       }),
     });
     if (res.ok) setAdded(true);
@@ -127,23 +128,23 @@ export default function SongView({ isLibraryPreview }) {
     <main className="min-h-screen pt-20 px-4 pb-12">
       <div className="max-w-6xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6 sticky top-0 z-10 bg-gray-50 dark:bg-surface-dark py-3 -mx-6 px-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex-shrink-0">
               <ArrowLeftIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
-            <MusicalNoteIcon className="w-6 h-6 text-accent" />
-            <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">
+            <MusicalNoteIcon className="w-6 h-6 text-accent flex-shrink-0" />
+            <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white truncate">
               {song?.title || "Song"}
             </h1>
             {uploader && (
-              <button onClick={() => navigate(`/user/${uploader.id}`)} className="flex items-center gap-1.5 ml-2 px-2.5 py-1 rounded-lg bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20 hover:bg-ludilo-100 dark:hover:bg-neon-cyan/10 transition-colors">
+              <button onClick={() => navigate(`/user/${uploader.id}`)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20 hover:bg-ludilo-100 dark:hover:bg-neon-cyan/10 transition-colors flex-shrink-0">
                 <UserIcon className="w-3.5 h-3.5 text-ludilo-600 dark:text-neon-cyan" />
                 <span className="text-xs font-medium text-ludilo-700 dark:text-neon-cyan">{uploader.username}</span>
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             {/* Add to my songs button (library preview or other user's song) */}
             {((isLibraryPreview) || (uploader && token)) && (
               <button

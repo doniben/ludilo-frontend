@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { FireIcon, MusicalNoteIcon, PlusIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import MidiPreview from "../components/MidiPreview";
+import QualityBadge from "../components/QualityBadge";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -41,7 +42,7 @@ export default function UserProfile() {
     const res = await fetch(`${API}/library/use`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ blobPath, title: song.title, artist: "", source: "ludilo", format: song.format || "stems+midi" }),
+      body: JSON.stringify({ blobPath, title: song.title, artist: "", source: "ludilo", format: song.format || "stems+midi", originalUserId: userId }),
     });
     if (res.ok) setAddedIds(new Set([...addedIds, song.id]));
   };
@@ -90,7 +91,7 @@ export default function UserProfile() {
                   <MusicalNoteIcon className="w-5 h-5" />
                   <span className="font-bold text-lg">{songs.length}</span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{t("dashboard.my_songs")}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t("profile.songs")}</p>
               </div>
             </div>
           </div>
@@ -108,10 +109,10 @@ export default function UserProfile() {
               {songs.map((song) => (
                 <div key={song.id} className="card-solid p-4 flex items-center justify-between hover:border-ludilo-300 dark:hover:border-neon-cyan/20 transition-colors">
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/song/${song.id}`)}>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{song.title}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      {song.stems && Object.keys(song.stems).length > 0 ? `${Object.keys(song.stems).length} stems` : song.format || ""}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <QualityBadge source={song.stems && Object.keys(song.stems).length > 0 ? "ludilo" : song.source === "library" ? (song.librarySource || "midi") : "midi"} />
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{song.title}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <MidiPreview blobPath={song.originalBlobPath || (Array.isArray(song.midiFiles) ? song.midiFiles[0] : Object.values(song.midiFiles || {})[0])} title={song.title} source={song.stems && Object.keys(song.stems).length ? "ludilo" : ""} stems={song.stems} />

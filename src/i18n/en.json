@@ -109,6 +109,7 @@
   },
   "profile": {
     "songs_of": "Songs by {{name}}",
-    "no_songs": "This user has no songs yet"
+    "no_songs": "This user has no songs yet",
+    "songs": "Songs"
   }
 }

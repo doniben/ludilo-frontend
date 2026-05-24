@@ -109,6 +109,7 @@
   },
   "profile": {
     "songs_of": "Kantoj de {{name}}",
-    "no_songs": "Ĉi tiu uzanto ankoraŭ ne havas kantojn"
+    "no_songs": "Ĉi tiu uzanto ankoraŭ ne havas kantojn",
+    "songs": "Kantoj"
   }
 }
