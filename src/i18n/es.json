@@ -114,5 +114,9 @@
     "view_tab": "Tablatura",
     "add_to_songs": "Agregar a mis canciones",
     "added": "Agregada"
+  },
+  "profile": {
+    "songs_of": "Canciones de {{name}}",
+    "no_songs": "Este usuario aún no tiene canciones"
   }
 }

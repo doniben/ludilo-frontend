@@ -106,5 +106,9 @@
     "view_tab": "Tablaturo",
     "add_to_songs": "Aldoni al miaj kantoj",
     "added": "Aldonita"
+  },
+  "profile": {
+    "songs_of": "Kantoj de {{name}}",
+    "no_songs": "Ĉi tiu uzanto ankoraŭ ne havas kantojn"
   }
 }

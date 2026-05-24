@@ -106,5 +106,9 @@
     "view_tab": "Tablature",
     "add_to_songs": "Add to my songs",
     "added": "Added"
+  },
+  "profile": {
+    "songs_of": "Songs by {{name}}",
+    "no_songs": "This user has no songs yet"
   }
 }

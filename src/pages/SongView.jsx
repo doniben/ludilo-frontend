@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { MusicalNoteIcon, PlusIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { MusicalNoteIcon, PlusIcon, ArrowLeftIcon, UserIcon } from "@heroicons/react/24/outline";
 import AlphaTabView from "../components/AlphaTabView";
 import ScoreView from "../components/ScoreView";
 import PianoRollView from "../components/PianoRollView";
@@ -36,6 +36,7 @@ export default function SongView({ isLibraryPreview }) {
   const midiSeqRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
+  const [uploader, setUploader] = useState(null);
   const token = localStorage.getItem("ludilo-token");
 
   useEffect(() => {
@@ -52,10 +53,21 @@ export default function SongView({ isLibraryPreview }) {
           });
         } else {
           const res = await fetch(`${API}/songs/${songId}/status`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
           const data = await res.json();
           setSong(data);
+          // Fetch uploader profile
+          if (data.userId) {
+            const currentUser = localStorage.getItem("ludilo-user");
+            const currentId = currentUser ? JSON.parse(currentUser).id : null;
+            if (data.userId !== currentId) {
+              try {
+                const pRes = await fetch(`${API}/users/${data.userId}/profile`);
+                if (pRes.ok) setUploader(await pRes.json());
+              } catch {}
+            }
+          }
           // Check if song has stems (processed by worker)
           if (data.stems && typeof data.stems === "object" && Object.keys(data.stems).length > 0) {
             setSongStems(data.stems);
@@ -86,15 +98,18 @@ export default function SongView({ isLibraryPreview }) {
 
   const addToMySongs = async () => {
     if (!token || added) return;
+    const blobPath = isLibraryPreview
+      ? searchParams.get("blobPath")
+      : song?.originalBlobPath || (typeof song?.midiFiles === "object" ? Object.values(song.midiFiles)[0] : "");
     const res = await fetch(`${API}/library/use`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        blobPath: searchParams.get("blobPath"),
-        title: searchParams.get("title") || "",
-        artist: searchParams.get("artist") || "",
-        source: searchParams.get("source") || "",
-        format: searchParams.get("format") || "",
+        blobPath,
+        title: isLibraryPreview ? (searchParams.get("title") || "") : (song?.title || ""),
+        artist: isLibraryPreview ? (searchParams.get("artist") || "") : "",
+        source: isLibraryPreview ? (searchParams.get("source") || "") : "ludilo",
+        format: isLibraryPreview ? (searchParams.get("format") || "") : (song?.format || "stems+midi"),
       }),
     });
     if (res.ok) setAdded(true);
@@ -120,11 +135,17 @@ export default function SongView({ isLibraryPreview }) {
             <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">
               {song?.title || "Song"}
             </h1>
+            {uploader && (
+              <button onClick={() => navigate(`/user/${uploader.id}`)} className="flex items-center gap-1.5 ml-2 px-2.5 py-1 rounded-lg bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20 hover:bg-ludilo-100 dark:hover:bg-neon-cyan/10 transition-colors">
+                <UserIcon className="w-3.5 h-3.5 text-ludilo-600 dark:text-neon-cyan" />
+                <span className="text-xs font-medium text-ludilo-700 dark:text-neon-cyan">{uploader.username}</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Add to my songs button (library preview only) */}
-            {isLibraryPreview && token && (
+            {/* Add to my songs button (library preview or other user's song) */}
+            {((isLibraryPreview) || (uploader && token)) && (
               <button
                 onClick={addToMySongs}
                 disabled={added}

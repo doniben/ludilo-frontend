@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Library from "./pages/Library";
 import SongView from "./pages/SongView";
 import AciLogs from "./pages/AciLogs";
+import UserProfile from "./pages/UserProfile";
 import "./i18n";
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/library" element={<Library />} />
               <Route path="/song/:songId" element={<SongView />} />
               <Route path="/library/view" element={<SongView isLibraryPreview />} />
+              <Route path="/user/:userId" element={<UserProfile />} />
               <Route path="/aci/logs" element={<AciLogs />} />
             </Routes>
           </div>
