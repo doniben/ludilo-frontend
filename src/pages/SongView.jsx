@@ -57,13 +57,14 @@ export default function SongView({ isLibraryPreview }) {
           });
           const data = await res.json();
           setSong(data);
-          // Fetch uploader profile
-          if (data.userId) {
+          // Fetch uploader profile (original uploader if it's a copy, or owner if viewing someone else's)
+          const uploaderUid = data.originalUserId || data.userId;
+          if (uploaderUid) {
             const currentUser = localStorage.getItem("ludilo-user");
             const currentId = currentUser ? JSON.parse(currentUser).id : null;
-            if (data.userId !== currentId) {
+            if (uploaderUid !== currentId) {
               try {
-                const pRes = await fetch(`${API}/users/${data.userId}/profile`);
+                const pRes = await fetch(`${API}/users/${uploaderUid}/profile`);
                 if (pRes.ok) setUploader(await pRes.json());
               } catch {}
             }
@@ -110,7 +111,7 @@ export default function SongView({ isLibraryPreview }) {
         artist: isLibraryPreview ? (searchParams.get("artist") || "") : "",
         source: isLibraryPreview ? (searchParams.get("source") || "") : "ludilo",
         format: isLibraryPreview ? (searchParams.get("format") || "") : (song?.format || "stems+midi"),
-        originalUserId: isLibraryPreview ? "" : (song?.userId || ""),
+        originalUserId: isLibraryPreview ? "" : (song?.originalUserId || song?.userId || ""),
       }),
     });
     if (res.ok) setAdded(true);
