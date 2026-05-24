@@ -133,15 +133,17 @@ export default function SongView({ isLibraryPreview }) {
               <ArrowLeftIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
             <MusicalNoteIcon className="w-6 h-6 text-accent flex-shrink-0" />
-            <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white truncate">
-              {song?.title || "Song"}
-            </h1>
-            {uploader && (
-              <button onClick={() => navigate(`/user/${uploader.id}`)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20 hover:bg-ludilo-100 dark:hover:bg-neon-cyan/10 transition-colors flex-shrink-0">
-                <UserIcon className="w-3.5 h-3.5 text-ludilo-600 dark:text-neon-cyan" />
-                <span className="text-xs font-medium text-ludilo-700 dark:text-neon-cyan">{uploader.username}</span>
-              </button>
-            )}
+            <div className="min-w-0">
+              <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white truncate">
+                {song?.title || "Song"}
+              </h1>
+              {uploader && (
+                <button onClick={() => navigate(`/user/${uploader.id}`)} className="flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-md bg-ludilo-50 dark:bg-neon-cyan/5 border border-ludilo-200 dark:border-neon-cyan/20 hover:bg-ludilo-100 dark:hover:bg-neon-cyan/10 transition-colors">
+                  <UserIcon className="w-3 h-3 text-ludilo-600 dark:text-neon-cyan" />
+                  <span className="text-xs font-medium text-ludilo-700 dark:text-neon-cyan">{uploader.username}</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3 flex-shrink-0">
