@@ -88,6 +88,18 @@ export default function SongView({ isLibraryPreview }) {
           const previewData = await previewRes.json();
           setFileUrl(previewData.url);
         }
+
+        // Check if already in my collection
+        if (token) {
+          try {
+            const myRes = await fetch(`${API}/songs`, { headers: { Authorization: `Bearer ${token}` } });
+            if (myRes.ok) {
+              const myData = await myRes.json();
+              const checkPath = isLibraryPreview ? searchParams.get("blobPath") : blobPath;
+              if ((myData.songs || []).some(s => s.originalBlobPath === checkPath)) setAdded(true);
+            }
+          } catch {}
+        }
       } catch (e) {
         console.error("[Ludilo] Error loading song:", e);
       } finally {
