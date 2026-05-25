@@ -17,7 +17,7 @@ function assignFret(midi, handPosition = 0) {
     if (fret >= 0 && fret <= MAX_FRET) {
       let dist = fret + s * 0.3;
       if (fret === 0) dist -= 3; // open string bonus
-      if (handPosition > 0) dist += Math.abs(fret - handPosition) * 0.5;
+      if (handPosition > 0) dist += Math.abs(fret - handPosition) * 1.0;
       if (dist < bestDist) { bestDist = dist; bestString = s; bestFret = fret; }
     }
   }
@@ -67,6 +67,26 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
               maxTime = Math.max(maxTime, note.time + note.duration);
             }
           }
+        }
+
+        // Re-assign simultaneous notes using hand position context
+        notes.sort((a, b) => a.start - b.start || a.string - b.string);
+        for (let i = 0; i < notes.length; ) {
+          // Group notes within 30ms (simultaneous)
+          let j = i + 1;
+          while (j < notes.length && notes[j].start - notes[i].start < 0.03) j++;
+          if (j - i > 1) {
+            // Find highest fret in group as hand position anchor
+            const group = notes.slice(i, j);
+            const maxFret = Math.max(...group.map(n => n.fret));
+            if (maxFret > 2) {
+              for (const n of group) {
+                const pos = assignFret(n.midi, maxFret);
+                if (pos) { n.string = pos.string; n.fret = pos.fret; }
+              }
+            }
+          }
+          i = j;
         }
 
         // Detect hammer-ons/pull-offs (consecutive notes on same string within 30ms gap)
