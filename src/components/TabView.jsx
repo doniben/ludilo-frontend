@@ -10,12 +10,14 @@ const MARGIN_LEFT = 70;
 const MARGIN_RIGHT = 50;
 const MARGIN_TOP = 150;
 
-function assignFret(midi) {
+function assignFret(midi, handPosition = 0) {
   let bestString = -1, bestFret = -1, bestDist = Infinity;
   for (let s = 0; s < NUM_STRINGS; s++) {
     const fret = midi - TUNING[s];
     if (fret >= 0 && fret <= MAX_FRET) {
-      const dist = Math.abs(fret - 5) + s * 0.5;
+      let dist = fret + s * 0.3;
+      if (fret === 0) dist -= 3; // open string bonus
+      if (handPosition > 0) dist += Math.abs(fret - handPosition) * 0.5;
       if (dist < bestDist) { bestDist = dist; bestString = s; bestFret = fret; }
     }
   }
