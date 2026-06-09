@@ -325,10 +325,20 @@ export default function Dashboard() {
               <button onClick={handleUpload} className="btn-primary w-full mt-4 py-3">{t("nav.upload")}</button>
               <div className="flex items-center gap-2 mt-2 justify-center">
                 <button
-                  onClick={() => setTranscriptionModel(transcriptionModel === "basic-pitch" ? "yourmt3" : "basic-pitch")}
-                  className={`text-xs px-2 py-1 rounded transition-colors ${transcriptionModel === "yourmt3" ? "bg-neon-magenta/20 text-neon-magenta dark:text-neon-magenta" : "bg-gray-100 dark:bg-gray-800 text-gray-500"}`}
+                  onClick={() => {
+                    const models = ["basic-pitch", "yourmt3", "hybrid"];
+                    const idx = (models.indexOf(transcriptionModel) + 1) % models.length;
+                    setTranscriptionModel(models[idx]);
+                  }}
+                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                    transcriptionModel === "hybrid" ? "bg-neon-magenta/20 text-neon-magenta" :
+                    transcriptionModel === "yourmt3" ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" :
+                    "bg-gray-100 dark:bg-gray-800 text-gray-500"
+                  }`}
                 >
-                  {transcriptionModel === "yourmt3" ? "Alta calidad (~12 min)" : "Rápido (~3 min)"}
+                  {transcriptionModel === "hybrid" ? "Máxima calidad (~20 min)" :
+                   transcriptionModel === "yourmt3" ? "Alta calidad (~12 min)" :
+                   "Rápido (~3 min)"}
                 </button>
               </div>
             </>

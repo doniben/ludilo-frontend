@@ -76,7 +76,15 @@
     "status_uploading": "Uploading",
     "status_queued": "Queued",
     "status_processing": "Processing",
-    "status_done": "Done"
+    "status_downloading": "Downloading",
+    "status_separating": "Separating instruments",
+    "status_detecting_chords": "Detecting chords",
+    "status_transcribing": "Converting to notes",
+    "status_classifying": "Classifying instruments (AI)",
+    "status_refining": "Refining tablature",
+    "status_completing": "Finishing",
+    "status_done": "Done",
+    "status_error": "Error"
   },
   "library": {
     "title": "Library",

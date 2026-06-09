@@ -76,7 +76,15 @@
     "status_uploading": "Alŝutante",
     "status_queued": "Envicigita",
     "status_processing": "Prilaborante",
-    "status_done": "Preta"
+    "status_downloading": "Elŝutante",
+    "status_separating": "Apartigante instrumentojn",
+    "status_detecting_chords": "Detektante akordojn",
+    "status_transcribing": "Konvertante al notoj",
+    "status_classifying": "Klasifikante instrumentojn (IA)",
+    "status_refining": "Rafinante tablaturo",
+    "status_completing": "Finigante",
+    "status_done": "Preta",
+    "status_error": "Eraro"
   },
   "library": {
     "title": "Biblioteko",
