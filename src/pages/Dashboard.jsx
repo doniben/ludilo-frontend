@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [libraryMatch, setLibraryMatch] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [transcriptionModel, setTranscriptionModel] = useState("basic-pitch");
 
   const token = localStorage.getItem("ludilo-token");
   const [songs, setSongs] = useState([]);
@@ -121,7 +122,7 @@ export default function Dashboard() {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ filename: file.name, fileSize: file.size, title: file.name.replace(/\.[^.]+$/, "") }),
+        body: JSON.stringify({ filename: file.name, fileSize: file.size, title: file.name.replace(/\.[^.]+$/, ""), transcription_model: transcriptionModel }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -322,6 +323,14 @@ export default function Dashboard() {
                 </p>
               )}
               <button onClick={handleUpload} className="btn-primary w-full mt-4 py-3">{t("nav.upload")}</button>
+              <div className="flex items-center gap-2 mt-2 justify-center">
+                <button
+                  onClick={() => setTranscriptionModel(transcriptionModel === "basic-pitch" ? "yourmt3" : "basic-pitch")}
+                  className={`text-xs px-2 py-1 rounded transition-colors ${transcriptionModel === "yourmt3" ? "bg-neon-magenta/20 text-neon-magenta dark:text-neon-magenta" : "bg-gray-100 dark:bg-gray-800 text-gray-500"}`}
+                >
+                  {transcriptionModel === "yourmt3" ? "Alta calidad (~12 min)" : "Rápido (~3 min)"}
+                </button>
+              </div>
             </>
           )}
         </motion.div>
