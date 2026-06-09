@@ -24,10 +24,12 @@ export default function SongView({ isLibraryPreview }) {
   const [isGP, setIsGP] = useState(false);
   const [midiBlobPath, setMidiBlobPath] = useState(null);
   const [musicXmlUrl, setMusicXmlUrl] = useState(null);
+  const [midiBarTimes, setMidiBarTimes] = useState(null);
   const [midiTracks, setMidiTracks] = useState([]);
   const [activePart, setActivePart] = useState(-1); // -1 = all
   const [songStems, setSongStems] = useState(null);
   const [activeStem, setActiveStem] = useState("guitar");
+  const [midiStemUrls, setMidiStemUrls] = useState(null); // { all: blobUrl }
   const [lyrics, setLyrics] = useState(null);
   const [lyricsVisible, setLyricsVisible] = useState(false);
   const [lyricsLoading, setLyricsLoading] = useState(false);
@@ -108,6 +110,95 @@ export default function SongView({ isLibraryPreview }) {
     };
     load();
   }, [songId, token, isLibraryPreview, searchParams]);
+
+  // Precarga MusicXML en background + calcula barTimes desde el MIDI
+  useEffect(() => {
+    if (!midiBlobPath || isGP) { setMidiBarTimes(null); return; }
+    // 1. Precarga MusicXML (no bloquea UI)
+    if (!musicXmlUrl) {
+      fetch(`${API}/library/musicxml?blobPath=${encodeURIComponent(midiBlobPath)}`)
+        .then(r => r.json())
+        .then(data => { if (data.url) setMusicXmlUrl(data.url); })
+        .catch(() => {});
+    }
+    // 2. Calcula barTimes desde el MIDI real
+    if (!fileUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { Midi } = await import("@tonejs/midi");
+        const res = await fetch(fileUrl);
+        if (!res.ok || cancelled) return;
+        const midi = new Midi(await res.arrayBuffer());
+        const tempos = midi.header.tempos?.length ? midi.header.tempos : [{ bpm: 120, ticks: 0 }];
+        const timeSigs = midi.header.timeSignatures?.length ? midi.header.timeSignatures : [{ ticks: 0, timeSignature: [4, 4] }];
+        const ppq = midi.header.ppq || 480;
+        // Find total duration
+        let maxTime = 0;
+        for (const t of midi.tracks) for (const n of t.notes) maxTime = Math.max(maxTime, n.time + n.duration);
+        // Build barTimes
+        const barTimes = [];
+        let tick = 0, tIdx = 0, tsIdx = 0, time = 0;
+        for (let bar = 0; bar < 5000 && time <= maxTime + 4; bar++) {
+          barTimes.push(time);
+          while (tIdx < tempos.length - 1 && tempos[tIdx + 1].ticks <= tick) tIdx++;
+          while (tsIdx < timeSigs.length - 1 && timeSigs[tsIdx + 1].ticks <= tick) tsIdx++;
+          const [num, den] = timeSigs[tsIdx].timeSignature;
+          tick += ppq * 4 * num / den;
+          time += (60 / tempos[tIdx].bpm) * num * (4 / den);
+        }
+        barTimes.push(time);
+        if (!cancelled) setMidiBarTimes(barTimes);
+      } catch (e) { console.warn("[Ludilo] barTimes calc:", e); }
+    })();
+    return () => { cancelled = true; };
+  }, [midiBlobPath, fileUrl, isGP]);
+
+  // Pre-fetch all MIDI stem URLs and generate combined MIDI for Ludilo songs
+  useEffect(() => {
+    if (!song?.midiFiles || typeof song.midiFiles !== "object" || isGP) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const midiFiles = song.midiFiles;
+        const urls = {};
+        const buffers = {};
+        for (const [name, blobPath] of Object.entries(midiFiles)) {
+          const res = await fetch(`${API}/library/preview?blobPath=${encodeURIComponent(blobPath)}`);
+          const data = await res.json();
+          if (data.url) {
+            urls[name] = data.url;
+            const midiRes = await fetch(data.url);
+            buffers[name] = await midiRes.arrayBuffer();
+          }
+        }
+        if (cancelled) return;
+
+        // Combine all MIDIs into one multi-track MIDI preserving MT3's channel assignments
+        const { Midi } = await import("@tonejs/midi");
+        const combined = new Midi();
+        for (const [name, buf] of Object.entries(buffers)) {
+          const parsed = new Midi(buf);
+          for (const srcTrack of parsed.tracks) {
+            if (srcTrack.notes.length === 0) continue;
+            const track = combined.addTrack();
+            track.name = srcTrack.name || (name.charAt(0).toUpperCase() + name.slice(1));
+            track.channel = srcTrack.channel;
+            track.instrument.number = srcTrack.instrument?.number ?? 0;
+            for (const note of srcTrack.notes) {
+              track.addNote({ midi: note.midi, time: note.time, duration: note.duration, velocity: note.velocity });
+            }
+          }
+        }
+        const combinedBuf = combined.toArray();
+        const blob = new Blob([combinedBuf], { type: "audio/midi" });
+        urls.all = URL.createObjectURL(blob);
+
+        if (!cancelled) setMidiStemUrls(urls);
+      } catch (e) { console.warn("[Ludilo] MIDI combine:", e); }
+    })();
+    return () => { cancelled = true; };
+  }, [song?.midiFiles, isGP]);
 
   const addToMySongs = async () => {
     if (!token || added) return;
@@ -256,11 +347,11 @@ export default function SongView({ isLibraryPreview }) {
                   if (midiSeqRef.current) midiSeqRef.current.duration = d;
                 }} />
               ) : (
-                <MidiPlayer midiUrl={fileUrl} seqRef={midiSeqRef} onTracksLoaded={setMidiTracks} activePart={activePart} onPartChange={setActivePart} />
+                <MidiPlayer midiUrl={songStems && midiStemUrls ? (midiStemUrls.all || fileUrl) : fileUrl} seqRef={midiSeqRef} onTracksLoaded={setMidiTracks} activePart={activePart} onPartChange={setActivePart} />
               )}
-              {view === "pianoroll" && <PianoRollView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} lyrics={lyricsVisible ? lyrics : null} />}
-              {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} seqRef={midiSeqRef} activePart={activePart} chords={song?.chords} lyrics={lyricsVisible ? lyrics : null} />}
-              {view === "tab" && <TabView midiUrl={fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onMusicXmlGenerated={setMusicXmlUrl} songTitle={song?.title} songArtist={song?.artist || song?.source} chords={song?.chords} lyrics={lyricsVisible ? lyrics : null} />}
+              {view === "pianoroll" && <PianoRollView midiUrl={songStems && midiStemUrls?.all ? midiStemUrls.all : fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} lyrics={lyricsVisible ? lyrics : null} />}
+              {view === "score" && <ScoreView blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onGenerated={setMusicXmlUrl} seqRef={midiSeqRef} activePart={activePart} midiTracks={midiTracks} chords={song?.chords} lyrics={lyricsVisible ? lyrics : null} barTimes={midiBarTimes} />}
+              {view === "tab" && <TabView midiUrl={songStems && midiStemUrls?.all ? midiStemUrls.all : fileUrl} seqRef={midiSeqRef} activePart={activePart} tracks={midiTracks} blobPath={midiBlobPath} musicXmlUrl={musicXmlUrl} onMusicXmlGenerated={setMusicXmlUrl} songTitle={song?.title} songArtist={song?.artist || song?.source} chords={song?.chords} lyrics={lyricsVisible ? lyrics : null} tabData={song?.tab_data} />}
             </>
           )}
         </div>
