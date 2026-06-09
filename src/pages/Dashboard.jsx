@@ -387,6 +387,15 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     {song.status === "done" && <MidiPreview blobPath={song.originalBlobPath} title={song.title} source={song.stems && Object.keys(song.stems).length ? "ludilo" : ""} stems={song.stems} />}
+                    {song.status === "done" && song.transcription_model && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        song.transcription_model === "hybrid" ? "bg-neon-magenta/10 text-neon-magenta" :
+                        song.transcription_model === "yourmt3" ? "bg-purple-500/10 text-purple-500" :
+                        "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      }`}>
+                        {song.transcription_model === "hybrid" ? "H" : song.transcription_model === "yourmt3" ? "MT3" : "BP"}
+                      </span>
+                    )}
                     {song.status === "done" && <QualityBadge source={typeof song.stems === "object" && !Array.isArray(song.stems) && Object.keys(song.stems || {}).length > 0 ? "ludilo" : song.librarySource === "ludilo" ? "ludilo" : song.librarySource === "guitarpro" ? "guitarpro" : song.format && song.format.startsWith("gp") ? "guitarpro" : "midi"} />}
                     {song.status === "done" && (
                       <span className="text-xs text-gray-400 dark:text-gray-500 hidden group-hover:inline" title="Puede tardar un momento mientras se descargan las pistas">Ver</span>
