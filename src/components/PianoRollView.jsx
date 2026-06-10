@@ -31,6 +31,9 @@ export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks
         for (const track of midi.tracks) {
           const ch = track.channel;
           for (const note of track.notes) {
+            if (note.duration < 0.08) continue;
+            const isDup = notes.some(n => Math.abs(n.start - note.time) < 0.1 && n.midi === note.midi);
+            if (isDup) continue;
             notes.push({ midi: note.midi, start: note.time, dur: note.duration, channel: ch });
           }
         }
@@ -60,7 +63,6 @@ export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks
           for (const l of parsed) { if (l.time <= currentTime) cur = l.text; else break; }
           setCurrentLyric(cur);
         }
-        const rate = seqRef?.current?.playbackRate || 1;
         const windowSec = 4;
         const pxPerSec = h / windowSec;
         const totalKeys = MIDI_MAX - MIDI_MIN;
@@ -85,8 +87,8 @@ export default function PianoRollView({ midiUrl, seqRef, activePart = -1, tracks
         for (const note of notesRef.current) {
           if (filterCh >= 0 && note.channel !== filterCh) continue;
           if (note.midi < MIDI_MIN || note.midi >= MIDI_MAX) continue;
-          const noteStart = note.start / rate;
-          const noteDur = note.dur / rate;
+          const noteStart = note.start;
+          const noteDur = note.dur;
           const relStart = noteStart - currentTime;
           const relEnd = relStart + noteDur;
           if (relEnd < 0 || relStart > windowSec) continue;

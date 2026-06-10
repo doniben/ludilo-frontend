@@ -61,8 +61,12 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
         for (const track of midi.tracks) {
           const ch = track.channel;
           for (const note of track.notes) {
+            if (note.duration < 0.08) continue; // Skip noise (<80ms)
             const pos = assignFret(note.midi);
             if (pos) {
+              // Deduplicate: skip if same pitch within 100ms already exists
+              const isDup = notes.some(n => Math.abs(n.start - note.time) < 0.1 && n.midi === note.midi);
+              if (isDup) continue;
               notes.push({ ...pos, start: note.time, dur: note.duration, channel: ch, velocity: note.velocity, midi: note.midi });
               maxTime = Math.max(maxTime, note.time + note.duration);
             }
@@ -158,7 +162,6 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
         ctx.fillRect(0, 0, w, totalHeight);
 
         const currentTime = seqRef?.current?.currentTime || 0;
-        const rate = seqRef?.current?.playbackRate || 1;
         const filterCh = activePart >= 0 && tracks[activePart] ? tracks[activePart].channel : -1;
 
         // Header
@@ -236,12 +239,12 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
             ctx.textBaseline = "bottom";
             ctx.fillStyle = isDark ? "#06ffd2" : "#0f766e";
             for (const chord of chords) {
-              const chordTime = chord.start / rate;
-              const chordMeasure = Math.floor(chordTime / (secPerMeasure / rate));
+              const chordTime = chord.start;
+              const chordMeasure = Math.floor(chordTime / secPerMeasure);
               const localM = chordMeasure - firstMeasure;
               if (localM < 0 || localM >= measuresPerLine) continue;
-              const mStart = chordMeasure * (secPerMeasure / rate);
-              const posInM = (chordTime - mStart) / (secPerMeasure / rate);
+              const mStart = chordMeasure * secPerMeasure;
+              const posInM = (chordTime - mStart) / secPerMeasure;
               const cx = MARGIN_LEFT + localM * measureWidth + posInM * measureWidth;
               ctx.fillText(chord.label, cx, lineY - 8);
             }
@@ -262,12 +265,12 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
             const staffBottom = lineY + STRING_SPACING * 5 + 12;
             for (const lyric of parsedLyrics) {
               if (!lyric.text) continue;
-              const lyricTime = lyric.time / rate;
-              const lyricMeasure = Math.floor(lyricTime / (secPerMeasure / rate));
+              const lyricTime = lyric.time;
+              const lyricMeasure = Math.floor(lyricTime / secPerMeasure);
               const localM = lyricMeasure - firstMeasure;
               if (localM < 0 || localM >= measuresPerLine) continue;
-              const mStart = lyricMeasure * (secPerMeasure / rate);
-              const posInM = (lyricTime - mStart) / (secPerMeasure / rate);
+              const mStart = lyricMeasure * secPerMeasure;
+              const posInM = (lyricTime - mStart) / secPerMeasure;
               const lx = MARGIN_LEFT + localM * measureWidth + posInM * measureWidth;
               ctx.fillText(lyric.text, lx, staffBottom);
             }
@@ -278,13 +281,13 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
           ctx.textBaseline = "middle";
           for (const note of notesRef.current) {
             if (filterCh >= 0 && note.channel !== filterCh) continue;
-            const noteTime = note.start / rate;
-            const measureIdx = Math.floor(noteTime / (secPerMeasure / rate));
+            const noteTime = note.start;
+            const measureIdx = Math.floor(noteTime / secPerMeasure);
             const localMeasure = measureIdx - firstMeasure;
             if (localMeasure < 0 || localMeasure >= measuresPerLine) continue;
 
-            const measureStartTime = measureIdx * (secPerMeasure / rate);
-            const posInMeasure = (noteTime - measureStartTime) / (secPerMeasure / rate);
+            const measureStartTime = measureIdx * secPerMeasure;
+            const posInMeasure = (noteTime - measureStartTime) / secPerMeasure;
             const x = MARGIN_LEFT + localMeasure * measureWidth + posInMeasure * measureWidth;
             const y = lineY + (NUM_STRINGS - 1 - note.string) * STRING_SPACING;
             const isActive = Math.abs(noteTime - currentTime) < 0.08;
@@ -309,12 +312,12 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
 
             // Legato arc (hammer-on / pull-off)
             if (note.legato && note.legatoFrom) {
-              const fromTime = note.legatoFrom.start / rate;
-              const fromMeasure = Math.floor(fromTime / (secPerMeasure / rate));
+              const fromTime = note.legatoFrom.start;
+              const fromMeasure = Math.floor(fromTime / secPerMeasure);
               const fromLocal = fromMeasure - firstMeasure;
               if (fromLocal >= 0 && fromLocal < measuresPerLine) {
-                const fromMeasureStart = fromMeasure * (secPerMeasure / rate);
-                const fromPos = (fromTime - fromMeasureStart) / (secPerMeasure / rate);
+                const fromMeasureStart = fromMeasure * secPerMeasure;
+                const fromPos = (fromTime - fromMeasureStart) / secPerMeasure;
                 const fromX = MARGIN_LEFT + fromLocal * measureWidth + fromPos * measureWidth;
                 const fromY = lineY + (NUM_STRINGS - 1 - note.legatoFrom.string) * STRING_SPACING;
                 // Draw arc
@@ -343,10 +346,10 @@ export default function TabView({ midiUrl, seqRef, activePart = -1, tracks = [],
           // Cursor
           for (let m = 0; m < measuresPerLine; m++) {
             const measureIdx = firstMeasure + m;
-            const measureStart = measureIdx * (secPerMeasure / rate);
-            const measureEnd = (measureIdx + 1) * (secPerMeasure / rate);
+            const measureStart = measureIdx * secPerMeasure;
+            const measureEnd = (measureIdx + 1) * secPerMeasure;
             if (currentTime >= measureStart && currentTime < measureEnd) {
-              const posInMeasure = (currentTime - measureStart) / (secPerMeasure / rate);
+              const posInMeasure = (currentTime - measureStart) / secPerMeasure;
               const cursorX = MARGIN_LEFT + m * measureWidth + posInMeasure * measureWidth;
               ctx.strokeStyle = isDark ? "#06ffd2" : "#0f766e";
               ctx.shadowColor = isDark ? "#06ffd2" : "#0f766e";
