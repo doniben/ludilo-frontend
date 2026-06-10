@@ -39,6 +39,8 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
   const [soloStems, setSoloStems] = useState(new Set());
   const [showMixer, setShowMixer] = useState(false);
   const [speed, setSpeed] = useState(100);
+  const prevSpeedRef = useRef(100);
+  const speedRef = useRef(100);
   const animRef = useRef(null);
 
   // Load all stems
@@ -108,7 +110,8 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
   useEffect(() => {
     const tick = () => {
       if (playing && audioCtxRef.current) {
-        const t = audioCtxRef.current.currentTime - startTimeRef.current + offsetRef.current;
+        const elapsed = audioCtxRef.current.currentTime - startTimeRef.current;
+        const t = elapsed * (speedRef.current / 100) + offsetRef.current;
         setCurrentTime(t);
         if (onTimeUpdate) onTimeUpdate(t);
         if (t >= duration) {
@@ -190,6 +193,14 @@ export default function StemPlayer({ stems, songId, onTimeUpdate, activeStem, on
 
   // Speed change
   useEffect(() => {
+    if (playing && audioCtxRef.current) {
+      // Save current position using previous speed before applying new rate
+      const elapsed = audioCtxRef.current.currentTime - startTimeRef.current;
+      offsetRef.current = elapsed * (prevSpeedRef.current / 100) + offsetRef.current;
+      startTimeRef.current = audioCtxRef.current.currentTime;
+    }
+    prevSpeedRef.current = speed;
+    speedRef.current = speed;
     Object.values(sourcesRef.current).forEach(s => {
       s.playbackRate.value = speed / 100;
     });

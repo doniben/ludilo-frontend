@@ -19,6 +19,7 @@ export default function MidiPlayer({ midiUrl, seqRef: externalSeqRef, onTracksLo
   const [speed, setSpeed] = useState(100);
   const [tracks, setTracks] = useState([]);
   const [volumes, setVolumes] = useState({});
+  const [soloChannels, setSoloChannels] = useState(new Set());
   const [showMixer, setShowMixer] = useState(false);
   const [loopStart, setLoopStart] = useState(null);
   const [loopEnd, setLoopEnd] = useState(null);
@@ -132,6 +133,17 @@ export default function MidiPlayer({ midiUrl, seqRef: externalSeqRef, onTracksLo
     return () => window.removeEventListener("keydown", handler);
   }, [play]);
 
+  // Apply solo: mute channels not in soloChannels set
+  useEffect(() => {
+    if (!synthRef.current || !tracks.length) return;
+    for (const t of tracks) {
+      const vol = volumes[t.index] ?? 100;
+      const muted = soloChannels.size > 0 && !soloChannels.has(t.channel);
+      const effectiveVol = muted || vol === 0 ? 0 : Math.round(vol * 1.27);
+      synthRef.current.controllerChange(t.channel, 7, effectiveVol);
+    }
+  }, [soloChannels, volumes, tracks]);
+
   const stop = useCallback(() => {
     if (seqRef.current) { seqRef.current.pause(); seqRef.current.currentTime = 0; }
     setPlaying(false);
@@ -202,29 +214,35 @@ export default function MidiPlayer({ midiUrl, seqRef: externalSeqRef, onTracksLo
       </div>
 
       {showMixer && tracks.length > 1 && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-1">
           {tracks.map((t) => {
             const vol = volumes[t.index] ?? 100;
+            const isSolo = soloChannels.has(t.channel);
+            const isMuted = soloChannels.size > 0 && !soloChannels.has(t.channel);
             return (
-              <div key={t.index} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-gray-50 dark:bg-white/5">
+              <div key={t.index} className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-gray-50 dark:bg-white/5">
+                <button
+                  onClick={() => { const next = new Set(soloChannels); if (next.has(t.channel)) next.delete(t.channel); else next.add(t.channel); setSoloChannels(next); }}
+                  className={`text-[10px] w-5 h-5 rounded flex items-center justify-center font-bold ${isSolo ? "bg-ludilo-500 dark:bg-neon-cyan text-white dark:text-black" : "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"}`}
+                >
+                  S
+                </button>
                 <button
                   onClick={() => {
                     const newVol = vol > 0 ? 0 : 100;
                     setVolumes((v) => ({ ...v, [t.index]: newVol }));
-                    if (synthRef.current) synthRef.current.controllerChange(t.channel, 7, newVol > 0 ? 127 : 0);
                   }}
-                  className={`text-xs w-5 h-5 rounded flex items-center justify-center font-bold ${vol === 0 ? "bg-red-500/20 text-red-500" : "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"}`}
+                  className={`text-[10px] w-5 h-5 rounded flex items-center justify-center font-bold ${vol === 0 || isMuted ? "bg-red-500/20 text-red-500" : "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"}`}
                 >
-                  {vol === 0 ? "M" : "\u266A"}
+                  M
                 </button>
-                <span className="text-xs text-gray-500 dark:text-gray-400 w-16 truncate">{t.name}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 w-14 truncate">{t.name}</span>
                 <input type="range" min="0" max="127" value={vol > 0 ? Math.round(vol * 1.27) : 0}
                   onChange={(e) => {
                     const val = Math.round(Number(e.target.value) / 1.27);
                     setVolumes((v) => ({ ...v, [t.index]: val }));
-                    if (synthRef.current) synthRef.current.controllerChange(t.channel, 7, Number(e.target.value));
                   }}
-                  className="w-16 h-1 accent-ludilo-500 dark:accent-neon-cyan" />
+                  className="w-14 h-1 accent-ludilo-500 dark:accent-neon-cyan" />
               </div>
             );
           })}

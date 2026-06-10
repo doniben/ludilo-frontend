@@ -3,7 +3,7 @@ import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 
 const API = import.meta.env.VITE_API_URL;
 
-export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, activePart = -1, chords = [], lyrics }) {
+export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, activePart = -1, midiTracks = [], chords = [], lyrics, barTimes: externalBarTimes }) {
   const containerRef = useRef(null);
   const osmdContainerRef = useRef(null);
   const osmdRef = useRef(null);
@@ -172,25 +172,35 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
     setLyricsOverlays(ovs);
   }, [lyrics, loading]);
 
-  // Filter visible parts
+  // Filter visible parts — map by MIDI channel from midiTracks
   useEffect(() => {
     if (!osmdRef.current || loading) return;
     const osmd = osmdRef.current;
     const instruments = osmd.sheet?.Instruments;
     if (!instruments || instruments.length <= 1) return;
 
-    // Clamp activePart to available instruments
-    const partIdx = activePart >= 0 && activePart < instruments.length ? activePart : -1;
+    // Get the MIDI channel of the selected track
+    const selectedChannel = activePart >= 0 && midiTracks[activePart]
+      ? midiTracks[activePart].channel
+      : -1;
 
     try {
-      instruments.forEach((inst, i) => {
-        inst.Visible = partIdx === -1 || i === partIdx;
-      });
+      if (selectedChannel === -1) {
+        // Show all
+        instruments.forEach(inst => { inst.Visible = true; });
+      } else {
+        // Match OSMD instrument to MIDI channel by index (music21 maps channels to parts in order)
+        instruments.forEach((inst, i) => {
+          // OSMD instruments are ordered by channel (excluding drums which music21 removes)
+          // Best heuristic: show instrument at same index, or if channel matches name
+          inst.Visible = i === activePart || instruments.length === 1;
+        });
+      }
       osmd.render();
     } catch (e) {
       console.warn("[Ludilo] ScoreView part filter error:", e.message);
     }
-  }, [activePart, loading]);
+  }, [activePart, midiTracks, loading]);
 
   // Step 3: Sync cursor with playback — own div cursor like AlphaTabView
   const cursorRef = useRef(null);
@@ -202,19 +212,24 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
     // Hide OSMD native cursor
     if (osmd.cursor?.cursorElement) osmd.cursor.cursorElement.style.display = "none";
 
-    // Build measure time map
+    // Use external barTimes (from real MIDI tempo map) or fall back to OSMD
     const measures = osmd.sheet?.sourceMeasures;
     if (!measures?.length) return;
-    const tempo = osmd.sheet?.defaultStartTempoInBpm || 120;
-    const barTimes = [];
-    let cumTime = 0;
-    for (const m of measures) {
+    let barTimes;
+    if (externalBarTimes?.length > 1) {
+      barTimes = externalBarTimes;
+    } else {
+      const tempo = osmd.sheet?.defaultStartTempoInBpm || 120;
+      barTimes = [];
+      let cumTime = 0;
+      for (const m of measures) {
+        barTimes.push(cumTime);
+        const num = m.timeSignature?.numerator || 4;
+        const den = m.timeSignature?.denominator || 4;
+        cumTime += (60 / tempo) * num * (4 / den);
+      }
       barTimes.push(cumTime);
-      const num = m.timeSignature?.numerator || 4;
-      const den = m.timeSignature?.denominator || 4;
-      cumTime += (60 / tempo) * num * (4 / den);
     }
-    barTimes.push(cumTime);
 
     // Get graphical measure bounds
     const graphic = osmd.graphic;
@@ -249,18 +264,17 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
 
       if (!seq.paused) {
         const time = seq.currentTime;
-        const rate = seq.playbackRate || 1;
 
-        // Find current measure
+        // currentTime is already scaled by playbackRate — compare directly with barTimes
         let barIdx = 0;
         for (let i = 0; i < barTimes.length - 1; i++) {
-          if (time * rate >= barTimes[i] && time * rate < barTimes[i + 1]) { barIdx = i; break; }
+          if (time >= barTimes[i] && time < barTimes[i + 1]) { barIdx = i; break; }
           if (i === barTimes.length - 2) barIdx = i;
         }
 
         if (barIdx < allMeasures.length && allMeasures[barIdx]) {
-          const barStart = barTimes[barIdx] / rate;
-          const barDur = (barTimes[barIdx + 1] - barTimes[barIdx]) / rate;
+          const barStart = barTimes[barIdx];
+          const barDur = barTimes[barIdx + 1] - barTimes[barIdx];
           const progress = Math.min((time - barStart) / barDur, 1);
           const mb = allMeasures[barIdx];
           const x = mb.x + progress * mb.w;
@@ -286,7 +300,7 @@ export default function ScoreView({ musicXmlUrl, blobPath, onGenerated, seqRef, 
     cursorAnimRef.current = requestAnimationFrame(animate);
 
     return () => { if (cursorAnimRef.current) cancelAnimationFrame(cursorAnimRef.current); };
-  }, [loading, seqRef]);
+  }, [loading, seqRef, externalBarTimes]);
 
   useEffect(() => {
     return () => { if (osmdRef.current) { osmdRef.current.clear(); osmdRef.current = null; } };

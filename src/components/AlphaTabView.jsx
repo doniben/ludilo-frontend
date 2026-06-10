@@ -177,21 +177,18 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
           const currentLookup = apiRef.current?.renderer?.boundsLookup;
           if (!currentLookup) { animRef.current = requestAnimationFrame(animate); return; }
           const allBars = currentLookup.staffSystems.flatMap(sg => sg.bars);
-          const time = seqRef.current.currentTime + 0.25;
+          const time = seqRef.current.currentTime + 0.15;
 
-          // Find which bar we're in (barTimes are at 100% speed, scale by playback rate)
-          const rate = seqRef.current.playbackRate || 1;
+          // currentTime is already scaled by playbackRate — compare directly with barTimes
           let barIdx = 0;
           for (let i = 0; i < barTimesRef.length - 1; i++) {
-            const scaledStart = barTimesRef[i] / rate;
-            const scaledEnd = barTimesRef[i + 1] / rate;
-            if (time >= scaledStart && time < scaledEnd) { barIdx = i; break; }
+            if (time >= barTimesRef[i] && time < barTimesRef[i + 1]) { barIdx = i; break; }
             if (i === barTimesRef.length - 2) barIdx = i;
           }
 
           if (barIdx < allBars.length && allBars[barIdx]) {
-            const barStart = barTimesRef[barIdx] / rate;
-            const barDuration = (barTimesRef[barIdx + 1] - barTimesRef[barIdx]) / rate;
+            const barStart = barTimesRef[barIdx];
+            const barDuration = barTimesRef[barIdx + 1] - barTimesRef[barIdx];
             const barProgress = (time - barStart) / barDuration;
             const rb = allBars[barIdx].realBounds || allBars[barIdx].visualBounds;
             const x = rb.x + (rb.w * Math.min(barProgress, 1));
@@ -352,7 +349,6 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       canvas.height = h;
 
       const currentTime = seqRef.current?.currentTime || 0;
-      const rate = seqRef.current?.playbackRate || 1;
       const windowSec = 4; // show 4 seconds of upcoming notes
       const pxPerSec = h / windowSec;
 
@@ -380,10 +376,8 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       const colors = ["#06ffd2", "#ff06c4", "#8b5cf6", "#fbbf24"];
       for (const note of notes) {
         if (note.midi < midiMin || note.midi >= midiMax) continue;
-        const noteStart = note.start / rate;
-        const noteDur = note.dur / rate;
-        const relStart = noteStart - currentTime;
-        const relEnd = relStart + noteDur;
+        const relStart = note.start - currentTime;
+        const relEnd = relStart + note.dur;
         if (relEnd < 0 || relStart > windowSec) continue;
 
         const x = (note.midi - midiMin) * keyW;
@@ -419,8 +413,7 @@ export default function AlphaTabView({ fileUrl, view = "tab" }) {
       // Update active notes for keyboard highlighting
       const active = new Set();
       for (const note of notes) {
-        const ns = note.start / rate;
-        if (currentTime >= ns && currentTime < ns + note.dur / rate) active.add(note.midi);
+        if (currentTime >= note.start && currentTime < note.start + note.dur) active.add(note.midi);
       }
       setActiveNotes(active);
 
